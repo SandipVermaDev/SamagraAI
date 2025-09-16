@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Flutter
+samagra_app/build/
+samagra_app/.dart_tool/
+samagra_app/.flutter-plugins
+samagra_app/.flutter-plugins-dependencies
+samagra_app/.packages
+samagra_app/.pub-cache/
+samagra_app/ios/.symlinks/
+samagra_app/ios/Pods/
+samagra_app/ios/Flutter/App.framework
+samagra_app/ios/Flutter/engine
+samagra_app/ios/Flutter/flutter_assets
