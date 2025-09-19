@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from api.chat import router as chat_router
+from api.document import router as document_router
 
 # Create the main FastAPI application instance
 app = FastAPI(
@@ -8,9 +9,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Include the router from the api/chat.py file
+# Include the router from the api
 app.include_router(chat_router)
-
+app.include_router(document_router)
 
 @app.get("/", tags=["Health Check"])
 async def root():

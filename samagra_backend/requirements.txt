@@ -1,6 +1,13 @@
 fastapi
 uvicorn
 python-dotenv
+pydantic-settings
+
 langchain
 langchain-google-genai
-pydantic-settings
+langchain-community
+
+faiss-cpu
+pypdf
+python-docx
+python-multipart
