@@ -44,24 +44,34 @@ class ChatService {
       // If upload didn't succeed (no uploadedDocumentName) but we have the
       // document available locally (bytes or file), include it inline as
       // base64 so the backend can still receive the file in the chat request.
-      if (uploadedDocumentName == null && documentState != null && documentState.hasDocument) {
+      if (uploadedDocumentName == null &&
+          documentState != null &&
+          documentState.hasDocument) {
         try {
           if (documentState.bytes != null) {
             final encoded = base64Encode(documentState.bytes!);
             body['documentBase64'] = encoded;
-            debugPrint('[ChatService] sendMessage: included documentBase64 (web) size=${documentState.bytes!.length}');
+            debugPrint(
+              '[ChatService] sendMessage: included documentBase64 (web) size=${documentState.bytes!.length}',
+            );
           } else if (documentState.file != null) {
             try {
               final bytes = await documentState.file!.readAsBytes();
               final encoded = base64Encode(bytes);
               body['documentBase64'] = encoded;
-              debugPrint('[ChatService] sendMessage: included documentBase64 (file) size=${bytes.length}');
+              debugPrint(
+                '[ChatService] sendMessage: included documentBase64 (file) size=${bytes.length}',
+              );
             } catch (e) {
-              debugPrint('[ChatService] sendMessage: failed to read file bytes -> $e');
+              debugPrint(
+                '[ChatService] sendMessage: failed to read file bytes -> $e',
+              );
             }
           }
         } catch (e) {
-          debugPrint('[ChatService] sendMessage: error encoding document -> $e');
+          debugPrint(
+            '[ChatService] sendMessage: error encoding document -> $e',
+          );
         }
       }
 
@@ -103,7 +113,9 @@ class ChatService {
       final uri = Uri.parse('$baseUrl/documents/upload');
       final request = http.MultipartRequest('POST', uri);
 
-      debugPrint('[ChatService] uploadDocument: preparing upload for ${doc.fileName}');
+      debugPrint(
+        '[ChatService] uploadDocument: preparing upload for ${doc.fileName}',
+      );
 
       if (doc.bytes != null) {
         // Web: bytes available
@@ -116,8 +128,12 @@ class ChatService {
         );
       } else if (doc.file != null) {
         // Mobile/desktop: file path available
-        debugPrint('[ChatService] uploadDocument: uploading file path=${doc.file!.path}');
-        request.files.add(await http.MultipartFile.fromPath('file', doc.file!.path));
+        debugPrint(
+          '[ChatService] uploadDocument: uploading file path=${doc.file!.path}',
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath('file', doc.file!.path),
+        );
       } else {
         debugPrint('[ChatService] uploadDocument: no file or bytes to upload');
         return null;
@@ -125,14 +141,18 @@ class ChatService {
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      debugPrint('[ChatService] uploadDocument: status=${response.statusCode} body=${response.body}');
+      debugPrint(
+        '[ChatService] uploadDocument: status=${response.statusCode} body=${response.body}',
+      );
 
       if (response.statusCode == 200) {
         try {
           final data = jsonDecode(response.body);
           // Try common keys for uploaded filename
-          final uploadedName = data['filename'] ?? data['fileName'] ?? data['name'];
-          if (uploadedName != null && uploadedName is String) return uploadedName;
+          final uploadedName =
+              data['filename'] ?? data['fileName'] ?? data['name'];
+          if (uploadedName != null && uploadedName is String)
+            return uploadedName;
         } catch (_) {
           // ignore parse errors
         }

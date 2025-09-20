@@ -111,19 +111,24 @@ class ChatProvider extends ChangeNotifier {
     try {
       String? uploadedDocumentName;
       if (_documentState.hasDocument) {
-        debugPrint('[ChatProvider] sendMessage: uploading document before sending message');
-        uploadedDocumentName = await _chatService.uploadDocument(_documentState);
-        debugPrint('[ChatProvider] sendMessage: uploadedDocumentName=$uploadedDocumentName');
+        debugPrint(
+          '[ChatProvider] sendMessage: uploading document before sending message',
+        );
+        uploadedDocumentName = await _chatService.uploadDocument(
+          _documentState,
+        );
+        debugPrint(
+          '[ChatProvider] sendMessage: uploadedDocumentName=$uploadedDocumentName',
+        );
       }
       // Get AI response
       final aiResponse = await _chatService.sendMessage(
         message: content,
         model: _selectedModel,
-  documentState: _documentState,
+        documentState: _documentState,
         imagePath: imagePath,
         uploadedDocumentName: uploadedDocumentName,
       );
-      
 
       // Update the AI message with the response
       final messageIndex = _messages.indexWhere((msg) => msg.id == aiMessageId);
