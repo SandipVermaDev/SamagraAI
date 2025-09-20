@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/ai_model.dart';
 import '../models/document_state.dart';
@@ -22,20 +22,65 @@ class ChatService {
     required AIModel model,
     DocumentState? documentState,
     String? imagePath,
+    String? uploadedDocumentName,
   }) async {
     try {
       final uri = Uri.parse('$baseUrl/chat');
 
       // Prepare the request body to match backend schema
-      Map<String, dynamic> body = {'message': message};
+      Map<String, dynamic> body = {'message': message, 'model': model.id};
 
-      // TODO: Add support for document and image when backend supports it
-      // For now, just send the basic message
+      if (documentState != null && documentState.hasDocument) {
+        body['document'] = {
+          'fileName': documentState.fileName,
+          'fileSize': documentState.fileSize,
+        };
+      }
+
+      if (uploadedDocumentName != null) {
+        body['uploadedDocumentName'] = uploadedDocumentName;
+      }
+
+      // If upload didn't succeed (no uploadedDocumentName) but we have the
+      // document available locally (bytes or file), include it inline as
+      // base64 so the backend can still receive the file in the chat request.
+      if (uploadedDocumentName == null && documentState != null && documentState.hasDocument) {
+        try {
+          if (documentState.bytes != null) {
+            final encoded = base64Encode(documentState.bytes!);
+            body['documentBase64'] = encoded;
+            debugPrint('[ChatService] sendMessage: included documentBase64 (web) size=${documentState.bytes!.length}');
+          } else if (documentState.file != null) {
+            try {
+              final bytes = await documentState.file!.readAsBytes();
+              final encoded = base64Encode(bytes);
+              body['documentBase64'] = encoded;
+              debugPrint('[ChatService] sendMessage: included documentBase64 (file) size=${bytes.length}');
+            } catch (e) {
+              debugPrint('[ChatService] sendMessage: failed to read file bytes -> $e');
+            }
+          }
+        } catch (e) {
+          debugPrint('[ChatService] sendMessage: error encoding document -> $e');
+        }
+      }
+
+      if (imagePath != null) {
+        body['imagePath'] = imagePath;
+      }
+
+      debugPrint(
+        '[ChatService] sendMessage: POST $uri body=${jsonEncode(body)}',
+      );
 
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
+      );
+
+      debugPrint(
+        '[ChatService] sendMessage: status=${response.statusCode} body=${response.body}',
       );
 
       if (response.statusCode == 200) {
@@ -45,21 +90,60 @@ class ChatService {
         throw Exception('HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
+      debugPrint('[ChatService] sendMessage: error -> $e');
       throw Exception('Error sending message: $e');
     }
   }
 
-  Future<bool> uploadDocument(File file) async {
+  /// Uploads a document. Supports both dart:io File (desktop/mobile) and
+  /// in-memory bytes (web). Returns the uploaded filename (as returned by
+  /// the server) on success, or null on failure.
+  Future<String?> uploadDocument(DocumentState doc) async {
     try {
       final uri = Uri.parse('$baseUrl/documents/upload');
       final request = http.MultipartRequest('POST', uri);
 
-      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+      debugPrint('[ChatService] uploadDocument: preparing upload for ${doc.fileName}');
 
-      final response = await request.send();
-      return response.statusCode == 200;
+      if (doc.bytes != null) {
+        // Web: bytes available
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            doc.bytes!,
+            filename: doc.fileName ?? 'upload',
+          ),
+        );
+      } else if (doc.file != null) {
+        // Mobile/desktop: file path available
+        debugPrint('[ChatService] uploadDocument: uploading file path=${doc.file!.path}');
+        request.files.add(await http.MultipartFile.fromPath('file', doc.file!.path));
+      } else {
+        debugPrint('[ChatService] uploadDocument: no file or bytes to upload');
+        return null;
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint('[ChatService] uploadDocument: status=${response.statusCode} body=${response.body}');
+
+      if (response.statusCode == 200) {
+        try {
+          final data = jsonDecode(response.body);
+          // Try common keys for uploaded filename
+          final uploadedName = data['filename'] ?? data['fileName'] ?? data['name'];
+          if (uploadedName != null && uploadedName is String) return uploadedName;
+        } catch (_) {
+          // ignore parse errors
+        }
+        // Fallback to original name
+        return doc.fileName;
+      }
+
+      return null;
     } catch (e) {
-      return false;
+      debugPrint('[ChatService] uploadDocument: error -> $e');
+      return null;
     }
   }
 

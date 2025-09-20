@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -264,26 +265,82 @@ class _InputBarState extends State<InputBar> {
 
   Future<void> _pickDocument() async {
     try {
+      debugPrint('[InputBar] _pickDocument: opening file picker...');
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'md'],
       );
 
-      if (result != null) {
-        final file = File(result.files.single.path!);
-        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-        chatProvider.setDocument(file);
+      debugPrint('[InputBar] _pickDocument: picker result: ${result != null}');
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Document "${result.files.single.name}" added'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+      if (result != null) {
+        final platformFile = result.files.single;
+
+        if (kIsWeb) {
+          // Web: FilePicker returns bytes
+          if (platformFile.bytes != null) {
+            final bytes = platformFile.bytes!;
+            final chatProvider = Provider.of<ChatProvider>(
+              context,
+              listen: false,
+            );
+            chatProvider.setDocumentFromWeb(
+              bytes: bytes,
+              name: platformFile.name,
+              size: bytes.length,
+            );
+            debugPrint(
+              '[InputBar] _pickDocument: web file name=${platformFile.name} size=${bytes.length}',
+            );
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Document "${platformFile.name}" added'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          } else {
+            debugPrint('[InputBar] _pickDocument: web file bytes are null');
+          }
+        } else {
+          // Mobile/desktop: use path
+          if (platformFile.path != null) {
+            final file = File(platformFile.path!);
+            debugPrint(
+              '[InputBar] _pickDocument: selected file path=${file.path} size=${file.lengthSync()}',
+            );
+
+            final chatProvider = Provider.of<ChatProvider>(
+              context,
+              listen: false,
+            );
+            chatProvider.setDocument(file);
+            debugPrint(
+              '[InputBar] _pickDocument: chatProvider.setDocument called',
+            );
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Document "${platformFile.name}" added'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          } else {
+            debugPrint(
+              '[InputBar] _pickDocument: platform file path is null (non-web)',
+            );
+          }
         }
+      } else {
+        debugPrint('[InputBar] _pickDocument: no file selected');
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[InputBar] _pickDocument: error -> $e');
+      debugPrint(st.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -297,13 +354,17 @@ class _InputBarState extends State<InputBar> {
 
   Future<void> _pickImage() async {
     try {
+      debugPrint('[InputBar] _pickImage: opening image picker...');
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.gallery);
+      debugPrint('[InputBar] _pickImage: picked=${image != null}');
 
       if (image != null) {
         await _handleSelectedImage(image.path);
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[InputBar] _pickImage: error -> $e');
+      debugPrint(st.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -317,13 +378,17 @@ class _InputBarState extends State<InputBar> {
 
   Future<void> _takePhoto() async {
     try {
+      debugPrint('[InputBar] _takePhoto: launching camera...');
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.camera);
+      debugPrint('[InputBar] _takePhoto: captured=${image != null}');
 
       if (image != null) {
         await _handleSelectedImage(image.path);
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[InputBar] _takePhoto: error -> $e');
+      debugPrint(st.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

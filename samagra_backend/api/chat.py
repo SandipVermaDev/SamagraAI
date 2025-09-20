@@ -11,9 +11,18 @@ router = APIRouter(tags=["Chat"])
 async def handle_chat_request(request: ChatRequest):
     """
     This endpoint receives a user's message and returns the AI's response.
+    It now supports document processing via base64 content.
     """
-    # 3. Call the AI service to get a reply
-    ai_reply = generate_ai_response(request.message)
+    print(f"Received chat request: message='{request.message}', has_document={request.documentBase64 is not None}")
+    if request.document:
+        print(f"Document info: fileName={request.document.fileName}, fileSize={request.document.fileSize}")
+    
+    # 3. Call the AI service to get a reply, passing document data if available
+    ai_reply = generate_ai_response(
+        message=request.message,
+        document_base64=request.documentBase64,
+        document_filename=request.document.fileName if request.document else None
+    )
 
     # 4. Return the reply in the defined response shape
     return ChatResponse(reply=ai_reply)

@@ -1,9 +1,11 @@
+import base64
+from typing import Optional
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_google_genai import ChatGoogleGenerativeAI
 from core.config import settings
-from services.rag_service import vector_store_retriever
+from services.rag_service import vector_store_retriever, process_uploaded_document
 
 # 1. Initialize the Language Model
 llm = ChatGoogleGenerativeAI(
@@ -12,12 +14,33 @@ llm = ChatGoogleGenerativeAI(
     convert_system_message_to_human=True
 )
 
-def generate_ai_response(message: str) -> str:
+def generate_ai_response(message: str, document_base64: Optional[str] = None, document_filename: Optional[str] = None) -> str:
     """
     This is the core function that gets a response from the AI model.
     It is now "context-aware" and will use the RAG pipeline if a document
-    has been processed.
+    has been processed or if document content is provided via base64.
     """
+    global vector_store_retriever
+    
+    # If document base64 content is provided, process it
+    if document_base64:
+        print(f"Processing document from base64 content (filename: {document_filename})")
+        try:
+            # Decode the base64 content
+            document_bytes = base64.b64decode(document_base64)
+            print(f"Decoded document size: {len(document_bytes)} bytes")
+            
+            # Process the document through RAG pipeline
+            success = process_uploaded_document(document_bytes)
+            if success:
+                print("Document processed successfully via base64")
+            else:
+                print("Failed to process document from base64")
+                return "Sorry, I had trouble processing your document. Please try again."
+        except Exception as e:
+            print(f"Error processing base64 document: {e}")
+            return "Sorry, I had trouble processing your document. Please try again."
+    
     # 1. Check if the retriever has been created
     if vector_store_retriever is None:
         # If no document is uploaded, behave as a general chatbot

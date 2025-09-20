@@ -12,6 +12,9 @@ class DocumentBanner extends StatelessWidget {
     return Consumer2<ChatProvider, ThemeProvider>(
       builder: (context, chatProvider, themeProvider, child) {
         final documentState = chatProvider.documentState;
+        debugPrint(
+          '[DocumentBanner] build: hasDocument=${documentState.hasDocument} file=${documentState.fileName}',
+        );
 
         if (!documentState.hasDocument) {
           return const SizedBox.shrink();

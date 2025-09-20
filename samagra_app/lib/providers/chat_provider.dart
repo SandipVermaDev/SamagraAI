@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../models/ai_model.dart';
@@ -29,8 +31,10 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void setDocument(File? file) {
+    debugPrint('[ChatProvider] setDocument called with file=${file?.path}');
     if (file == null) {
       _documentState = DocumentState.empty;
+      debugPrint('[ChatProvider] setDocument: cleared document');
     } else {
       _documentState = DocumentState(
         file: file,
@@ -39,7 +43,29 @@ class ChatProvider extends ChangeNotifier {
         fileSize: file.lengthSync(),
         uploadTime: DateTime.now(),
       );
+      debugPrint(
+        '[ChatProvider] setDocument: fileName=${_documentState.fileName} size=${_documentState.fileSize}',
+      );
     }
+    notifyListeners();
+  }
+
+  /// On web, files may be provided as bytes. Use this helper to set document from bytes
+  void setDocumentFromWeb({
+    required Uint8List bytes,
+    required String name,
+    required int size,
+  }) {
+    debugPrint(
+      '[ChatProvider] setDocumentFromWeb called name=$name size=$size',
+    );
+    _documentState = DocumentState(
+      bytes: bytes,
+      fileName: name,
+      filePath: null,
+      fileSize: size,
+      uploadTime: DateTime.now(),
+    );
     notifyListeners();
   }
 
@@ -79,14 +105,25 @@ class ChatProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    debugPrint(
+      '[ChatProvider] sendMessage: message="$content" imagePath=$imagePath document=${_documentState.fileName}',
+    );
     try {
+      String? uploadedDocumentName;
+      if (_documentState.hasDocument) {
+        debugPrint('[ChatProvider] sendMessage: uploading document before sending message');
+        uploadedDocumentName = await _chatService.uploadDocument(_documentState);
+        debugPrint('[ChatProvider] sendMessage: uploadedDocumentName=$uploadedDocumentName');
+      }
       // Get AI response
       final aiResponse = await _chatService.sendMessage(
         message: content,
         model: _selectedModel,
-        documentState: _documentState,
+  documentState: _documentState,
         imagePath: imagePath,
+        uploadedDocumentName: uploadedDocumentName,
       );
+      
 
       // Update the AI message with the response
       final messageIndex = _messages.indexWhere((msg) => msg.id == aiMessageId);
@@ -99,6 +136,7 @@ class ChatProvider extends ChangeNotifier {
       }
     } catch (e) {
       // Handle error
+      debugPrint('[ChatProvider] sendMessage: error -> $e');
       final messageIndex = _messages.indexWhere((msg) => msg.id == aiMessageId);
       if (messageIndex != -1) {
         _messages[messageIndex] = _messages[messageIndex].copyWith(
