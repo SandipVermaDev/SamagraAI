@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/message_list.dart';
 import '../widgets/document_banner.dart';
 import '../widgets/input_bar.dart';
@@ -11,12 +12,21 @@ class ChatScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ChatProvider>(
-      builder: (context, chatProvider, child) {
+    return Consumer2<ChatProvider, ThemeProvider>(
+      builder: (context, chatProvider, themeProvider, child) {
         return Scaffold(
           appBar: AppBar(
             title: const Text('SamagraAI'),
             actions: [
+              IconButton(
+                icon: Icon(
+                  themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                ),
+                onPressed: () {
+                  themeProvider.toggleTheme();
+                },
+                tooltip: 'Toggle Theme',
+              ),
               IconButton(
                 icon: const Icon(Icons.wifi),
                 onPressed: () {

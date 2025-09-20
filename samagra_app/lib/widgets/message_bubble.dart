@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 import '../models/chat_message.dart';
+import '../providers/theme_provider.dart';
 import '../theme/app_theme.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -16,6 +18,7 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.sender == MessageSender.user;
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Row(
       mainAxisAlignment: isUser
@@ -25,7 +28,7 @@ class MessageBubble extends StatelessWidget {
         if (!isUser) ...[
           CircleAvatar(
             radius: 16,
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.mediumPurple,
             child: Icon(Icons.smart_toy, color: Colors.white, size: 16),
           ),
           const SizedBox(width: 8),
@@ -48,22 +51,24 @@ class MessageBubble extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: isUser
-                        ? AppColors.userMessageBg
-                        : AppColors.aiMessageBg,
+                        ? themeProvider.getUserMessageBg(context)
+                        : themeProvider.getAiMessageBg(context),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Image preview if present
-                      if (message.hasImage) _buildImagePreview(),
+                      if (message.hasImage)
+                        _buildImagePreview(context, themeProvider),
 
                       // Message content
                       if (message.content.isNotEmpty)
-                        _buildMessageContent(isUser),
+                        _buildMessageContent(context, isUser, themeProvider),
 
                       // Loading indicator for AI messages
-                      if (message.isLoading) _buildLoadingIndicator(),
+                      if (message.isLoading)
+                        _buildLoadingIndicator(context, themeProvider),
                     ],
                   ),
                 ),
@@ -73,7 +78,7 @@ class MessageBubble extends StatelessWidget {
                   child: Text(
                     _formatTimestamp(message.timestamp),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[500],
+                      color: themeProvider.getTextHint(context),
                       fontSize: 11,
                     ),
                   ),
@@ -86,7 +91,7 @@ class MessageBubble extends StatelessWidget {
           const SizedBox(width: 8),
           CircleAvatar(
             radius: 16,
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.mediumPurple,
             child: Icon(Icons.person, color: Colors.white, size: 16),
           ),
         ],
@@ -94,7 +99,7 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildImagePreview() {
+  Widget _buildImagePreview(BuildContext context, ThemeProvider themeProvider) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: ClipRRect(
@@ -121,17 +126,26 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageContent(bool isUser) {
+  Widget _buildMessageContent(
+    BuildContext context,
+    bool isUser,
+    ThemeProvider themeProvider,
+  ) {
     return SelectableText(
       message.content,
       style: TextStyle(
-        color: isUser ? AppColors.userMessageText : AppColors.aiMessageText,
+        color: isUser
+            ? themeProvider.getUserMessageText(context)
+            : themeProvider.getAiMessageText(context),
         fontSize: 14,
       ),
     );
   }
 
-  Widget _buildLoadingIndicator() {
+  Widget _buildLoadingIndicator(
+    BuildContext context,
+    ThemeProvider themeProvider,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -140,14 +154,16 @@ class MessageBubble extends StatelessWidget {
           height: 16,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.aiMessageText),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              themeProvider.getAiMessageText(context),
+            ),
           ),
         ),
         const SizedBox(width: 8),
         Text(
           'AI is thinking...',
           style: TextStyle(
-            color: AppColors.aiMessageText,
+            color: themeProvider.getAiMessageText(context),
             fontSize: 12,
             fontStyle: FontStyle.italic,
           ),

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../providers/chat_provider.dart';
+import '../providers/theme_provider.dart';
 import '../theme/app_theme.dart';
 
 class InputBar extends StatefulWidget {
@@ -45,8 +46,8 @@ class _InputBarState extends State<InputBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ChatProvider>(
-      builder: (context, chatProvider, child) {
+    return Consumer2<ChatProvider, ThemeProvider>(
+      builder: (context, chatProvider, themeProvider, child) {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -67,7 +68,7 @@ class _InputBarState extends State<InputBar> {
                 onPressed: chatProvider.isLoading ? null : _showAttachmentMenu,
                 icon: const Icon(Icons.attach_file),
                 style: IconButton.styleFrom(
-                  foregroundColor: AppColors.textSecondary,
+                  foregroundColor: themeProvider.getTextSecondary(context),
                 ),
                 tooltip: 'Attach file or image',
               ),
@@ -112,7 +113,10 @@ class _InputBarState extends State<InputBar> {
                         hintText: chatProvider.isLoading
                             ? 'AI is thinking...'
                             : 'Type your message... (Enter to send, Shift+Enter for new line)',
-                        suffixIcon: _buildSendButton(chatProvider),
+                        suffixIcon: _buildSendButton(
+                          chatProvider,
+                          themeProvider,
+                        ),
                       ),
                       onSubmitted:
                           null, // Disabled since we handle with KeyboardListener
@@ -132,7 +136,7 @@ class _InputBarState extends State<InputBar> {
                 style: IconButton.styleFrom(
                   foregroundColor: _isRecording
                       ? AppColors.error
-                      : AppColors.textSecondary,
+                      : themeProvider.getTextSecondary(context),
                   backgroundColor: _isRecording
                       ? AppColors.error.withOpacity(0.1)
                       : null,
@@ -148,7 +152,10 @@ class _InputBarState extends State<InputBar> {
     );
   }
 
-  Widget _buildSendButton(ChatProvider chatProvider) {
+  Widget _buildSendButton(
+    ChatProvider chatProvider,
+    ThemeProvider themeProvider,
+  ) {
     return IconButton(
       onPressed: (_hasText && !chatProvider.isLoading)
           ? () => _sendMessage(chatProvider)
@@ -156,8 +163,8 @@ class _InputBarState extends State<InputBar> {
       icon: Icon(
         Icons.send,
         color: (_hasText && !chatProvider.isLoading)
-            ? AppColors.primary
-            : AppColors.textHint,
+            ? AppColors.mediumPurple
+            : themeProvider.getTextHint(context),
       ),
       tooltip: 'Send message',
     );
@@ -245,7 +252,10 @@ class _InputBarState extends State<InputBar> {
           const SizedBox(height: 8),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
           ),
         ],
       ),
@@ -402,7 +412,7 @@ class _ImageConfirmDialogState extends State<_ImageConfirmDialog> {
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),

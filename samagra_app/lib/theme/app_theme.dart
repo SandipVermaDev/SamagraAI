@@ -1,148 +1,98 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary colors
-  static const Color primary = Color(0xFF2196F3);
-  static const Color primaryDark = Color(0xFF1976D2);
-  static const Color primaryLight = Color(0xFFBBDEFB);
+  // Base palette colors
+  static const Color deepPurple = Color(0xFF1B0E20);
+  static const Color darkPurple = Color(0xFF44334A);
+  static const Color mediumPurple = Color(0xFF795690);
+  static const Color brightPurple = Color(0xFF9570C6);
+  static const Color lightPurple = Color(0xFFD1C0EC);
+  static const Color warmPurple = Color(0xFFC4ADDD);
+  static const Color softPink = Color(0xFFDB99C7);
+  static const Color lavenderBg = Color(0xFFE1D3E8);
+  static const Color darkReadableText = Color(0xFF391B49);
+  static const Color mutedGray = Color(0xFF484149);
 
-  // Background colors
-  static const Color background = Color(0xFFF5F5F5);
-  static const Color surface = Colors.white;
-  static const Color surfaceVariant = Color(0xFFF8F9FA);
+  // Light theme colors
+  static const Color lightBackground = lavenderBg;
+  static const Color lightSurface = Colors.white;
+  static const Color lightTextPrimary = darkReadableText;
+  static const Color lightTextSecondary = mutedGray;
+  static const Color lightTextHint = mediumPurple;
 
-  // Text colors
-  static const Color textPrimary = Color(0xFF212121);
-  static const Color textSecondary = Color(0xFF757575);
-  static const Color textHint = Color(0xFF9E9E9E);
+  // Dark theme colors
+  static const Color darkBackground = deepPurple;
+  static const Color darkSurface = darkPurple;
+  static const Color darkTextPrimary = lightPurple;
+  static const Color darkTextSecondary = warmPurple;
+  static const Color darkTextHint = brightPurple;
 
-  // Message colors
-  static const Color userMessageBg = Color(0xFF2196F3);
-  static const Color aiMessageBg = Color(0xFFE3F2FD);
-  static const Color userMessageText = Colors.white;
-  static const Color aiMessageText = Color(0xFF1976D2);
+  // Chat bubble colors
+  static const Color lightUserMessageBg = Color(0xFFC29CE4);
+  static const Color lightAiMessageBg = lightPurple;
+  static const Color lightUserMessageText = Colors.white;
+  static const Color lightAiMessageText = darkReadableText;
 
-  // Status colors
+  static const Color darkUserMessageBg = Color(0xFF4B2C61);
+  static const Color darkAiMessageBg = mediumPurple;
+  static const Color darkUserMessageText = Colors.white;
+  static const Color darkAiMessageText = Colors.white;
+
+  // Document banner colors
+  static const Color lightDocumentBanner = Color(0xFFE8F5E8);
+  static const Color lightDocumentBannerText = Color(0xFF2E7D32);
+  static const Color darkDocumentBanner = Color(0xFF2A3A2A);
+  static const Color darkDocumentBannerText = Color(0xFF81C784);
+
   static const Color success = Color(0xFF4CAF50);
   static const Color warning = Color(0xFFFF9800);
   static const Color error = Color(0xFFF44336);
-  static const Color info = Color(0xFF03A9F4);
-
-  // Border colors
-  static const Color border = Color(0xFFE0E0E0);
-  static const Color divider = Color(0xFFE0E0E0);
-
-  // Document banner
-  static const Color documentBanner = Color(0xFFE8F5E8);
-  static const Color documentBannerText = Color(0xFF2E7D32);
+  static const Color info = mediumPurple;
 }
 
 class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
+        seedColor: AppColors.mediumPurple,
         brightness: Brightness.light,
+        primary: AppColors.mediumPurple,
+        onPrimary: Colors.white,
+        secondary: AppColors.softPink,
+        surface: AppColors.lightSurface,
+        onSurface: AppColors.mutedGray,
+        background: AppColors.lightBackground,
+        onBackground: AppColors.darkReadableText,
       ),
-      scaffoldBackgroundColor: AppColors.background,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        scrolledUnderElevation: 1,
-        titleTextStyle: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-        ),
-        headlineMedium: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-        ),
-        titleLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-        ),
-        titleMedium: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-        bodyLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 16,
-          fontWeight: FontWeight.normal,
-        ),
-        bodyMedium: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 14,
-          fontWeight: FontWeight.normal,
-        ),
-        bodySmall: TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.normal,
-        ),
-      ),
+      scaffoldBackgroundColor: AppColors.lightBackground,
       inputDecorationTheme: InputDecorationTheme(
+        fillColor: Colors.white,
         filled: true,
-        fillColor: AppColors.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        hintStyle: const TextStyle(color: AppColors.textHint),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.brightPurple,
+        brightness: Brightness.dark,
+        primary: AppColors.brightPurple,
+        onPrimary: AppColors.deepPurple,
+        secondary: AppColors.softPink,
+        surface: AppColors.darkSurface,
+        onSurface: AppColors.warmPurple,
+        background: AppColors.darkBackground,
+        onBackground: AppColors.lightPurple,
       ),
-      iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(
-          foregroundColor: AppColors.textSecondary,
-          padding: const EdgeInsets.all(8),
-        ),
-      ),
-      cardTheme: const CardThemeData(
-        color: AppColors.surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          side: BorderSide(color: AppColors.border, width: 1),
-        ),
-      ),
-      dividerTheme: const DividerThemeData(
-        color: AppColors.divider,
-        thickness: 1,
+      scaffoldBackgroundColor: AppColors.darkBackground,
+      inputDecorationTheme: InputDecorationTheme(
+        fillColor: AppColors.darkPurple,
+        filled: true,
       ),
     );
   }

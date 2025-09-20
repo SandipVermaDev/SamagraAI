@@ -65,8 +65,7 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     // Add AI loading message
-    final aiMessageId =
-        DateTime.now().millisecondsSinceEpoch.toString() + '_ai';
+    final aiMessageId = '${DateTime.now().millisecondsSinceEpoch}_ai';
     final aiMessage = ChatMessage(
       id: aiMessageId,
       content: '',
