@@ -5,7 +5,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_google_genai import ChatGoogleGenerativeAI
 from core.config import settings
-from services.rag_service import vector_store_retriever, process_uploaded_document
+from services.rag_service import vector_store_retriever, process_uploaded_document, process_uploaded_image
 
 # 1. Initialize the Language Model
 llm = ChatGoogleGenerativeAI(
@@ -14,7 +14,13 @@ llm = ChatGoogleGenerativeAI(
     convert_system_message_to_human=True
 )
 
-def generate_ai_response(message: str, document_base64: Optional[str] = None, document_filename: Optional[str] = None) -> str:
+def generate_ai_response(
+    message: str,
+    document_base64: Optional[str] = None,
+    document_filename: Optional[str] = None,
+    image_base64: Optional[str] = None,
+    image_filename: Optional[str] = None,
+) -> str:
     """
     This is the core function that gets a response from the AI model.
     It is now "context-aware" and will use the RAG pipeline if a document
@@ -40,12 +46,36 @@ def generate_ai_response(message: str, document_base64: Optional[str] = None, do
         except Exception as e:
             print(f"Error processing base64 document: {e}")
             return "Sorry, I had trouble processing your document. Please try again."
+
+    # If an image is provided inline, attempt to OCR and process it
+    ocr_text = None
+    if image_base64:
+        print(f"Processing image from base64 content (filename: {image_filename})")
+        try:
+            image_bytes = base64.b64decode(image_base64)
+            ocr_text = process_uploaded_image(image_bytes, image_filename)
+            if ocr_text:
+                print(f"Image processed successfully via Google Vision: {len(ocr_text)} characters extracted")
+            else:
+                print("Failed to extract text from image")
+        except Exception as e:
+            print(f"Error processing base64 image: {e}")
+            ocr_text = None
     
     # 1. Check if the retriever has been created
     if vector_store_retriever is None:
         # If no document is uploaded, behave as a general chatbot
         print("No document loaded. Using general conversation mode.")
         try:
+            # If we have OCR text from the image, include it in the prompt
+            if ocr_text:
+                combined_prompt = (
+                    f"Here is text extracted from an image:\n\n{ocr_text}\n\n"
+                    f"Based on this text, please answer: {message}"
+                )
+                ai_response = llm.invoke(combined_prompt)
+                return ai_response.content
+
             ai_response = llm.invoke(message)
             return ai_response.content
         except Exception as e:

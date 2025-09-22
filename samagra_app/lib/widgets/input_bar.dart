@@ -113,7 +113,7 @@ class _InputBarState extends State<InputBar> {
                       decoration: InputDecoration(
                         hintText: chatProvider.isLoading
                             ? 'AI is thinking...'
-                            : 'Type your message... (Enter to send, Shift+Enter for new line)',
+                            : 'Type your message... ',
                         suffixIcon: _buildSendButton(
                           chatProvider,
                           themeProvider,
@@ -208,13 +208,13 @@ class _InputBarState extends State<InputBar> {
                   ),
                   _buildAttachmentOption(
                     icon: Icons.image,
-                    label: 'Image',
+                    label: kIsWeb ? 'Gallery' : 'Image',
                     color: AppColors.success,
                     onTap: _pickImage,
                   ),
                   _buildAttachmentOption(
                     icon: Icons.camera_alt,
-                    label: 'Camera',
+                    label: kIsWeb ? 'Camera' : 'Camera',
                     color: AppColors.warning,
                     onTap: _takePhoto,
                   ),
@@ -266,10 +266,13 @@ class _InputBarState extends State<InputBar> {
   Future<void> _pickDocument() async {
     try {
       debugPrint('[InputBar] _pickDocument: opening file picker...');
+      final messenger = ScaffoldMessenger.of(context);
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'md'],
       );
+
+      if (!mounted) return;
 
       debugPrint('[InputBar] _pickDocument: picker result: ${result != null}');
 
@@ -294,7 +297,7 @@ class _InputBarState extends State<InputBar> {
             );
 
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: Text('Document "${platformFile.name}" added'),
                   backgroundColor: AppColors.success,
@@ -322,7 +325,7 @@ class _InputBarState extends State<InputBar> {
             );
 
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: Text('Document "${platformFile.name}" added'),
                   backgroundColor: AppColors.success,
@@ -354,13 +357,20 @@ class _InputBarState extends State<InputBar> {
 
   Future<void> _pickImage() async {
     try {
-      debugPrint('[InputBar] _pickImage: opening image picker...');
+      debugPrint('[InputBar] _pickImage: opening gallery picker...');
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.gallery);
+      if (!mounted) return;
       debugPrint('[InputBar] _pickImage: picked=${image != null}');
 
       if (image != null) {
-        await _handleSelectedImage(image.path);
+        if (kIsWeb) {
+          // On web, we need to read bytes instead of using file path
+          final bytes = await image.readAsBytes();
+          await _handleSelectedImageFromBytes(bytes, image.name);
+        } else {
+          await _handleSelectedImage(image.path);
+        }
       }
     } catch (e, st) {
       debugPrint('[InputBar] _pickImage: error -> $e');
@@ -380,11 +390,23 @@ class _InputBarState extends State<InputBar> {
     try {
       debugPrint('[InputBar] _takePhoto: launching camera...');
       final picker = ImagePicker();
+
+      if (kIsWeb) {
+        // On web, show user that this will open camera if available
+        final shouldProceed = await _showWebCameraDialog();
+        if (!shouldProceed) return;
+      }
       final image = await picker.pickImage(source: ImageSource.camera);
+      if (!mounted) return;
       debugPrint('[InputBar] _takePhoto: captured=${image != null}');
 
       if (image != null) {
-        await _handleSelectedImage(image.path);
+        if (kIsWeb) {
+          final bytes = await image.readAsBytes();
+          await _handleSelectedImageFromBytes(bytes, image.name);
+        } else {
+          await _handleSelectedImage(image.path);
+        }
       }
     } catch (e, st) {
       debugPrint('[InputBar] _takePhoto: error -> $e');
@@ -400,6 +422,29 @@ class _InputBarState extends State<InputBar> {
     }
   }
 
+  Future<bool> _showWebCameraDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Camera Access'),
+            content: const Text(
+              'This will attempt to access your camera. On some browsers, this might open a file picker instead. Grant camera permissions for the best experience.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Future<void> _handleSelectedImage(String imagePath) async {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
@@ -411,9 +456,35 @@ class _InputBarState extends State<InputBar> {
 
     if (result != null) {
       if (mounted) {
+        final imageName = imagePath.split('/').last.split('\\').last;
         await chatProvider.sendMessage(
           result['message'] ?? '',
           imagePath: imagePath,
+          imageName: imageName,
+        );
+      }
+    }
+  }
+
+  Future<void> _handleSelectedImageFromBytes(
+    Uint8List imageBytes,
+    String imageName,
+  ) async {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+
+    // Show dialog to confirm sending image with optional message
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) =>
+          _ImageConfirmDialog(imageBytes: imageBytes, imageName: imageName),
+    );
+
+    if (result != null) {
+      if (mounted) {
+        await chatProvider.sendMessage(
+          result['message'] ?? '',
+          imageBytes: imageBytes,
+          imageName: imageName,
         );
       }
     }
@@ -447,9 +518,15 @@ class _InputBarState extends State<InputBar> {
 }
 
 class _ImageConfirmDialog extends StatefulWidget {
-  final String imagePath;
+  final String? imagePath;
+  final Uint8List? imageBytes;
+  final String? imageName;
 
-  const _ImageConfirmDialog({required this.imagePath});
+  const _ImageConfirmDialog({this.imagePath, this.imageBytes, this.imageName})
+    : assert(
+        (imagePath != null) || (imageBytes != null && imageName != null),
+        'Either imagePath or both imageBytes and imageName must be provided',
+      );
 
   @override
   State<_ImageConfirmDialog> createState() => _ImageConfirmDialogState();
@@ -481,7 +558,9 @@ class _ImageConfirmDialogState extends State<_ImageConfirmDialog> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.file(File(widget.imagePath), fit: BoxFit.cover),
+              child: widget.imageBytes != null
+                  ? Image.memory(widget.imageBytes!, fit: BoxFit.cover)
+                  : Image.file(File(widget.imagePath!), fit: BoxFit.cover),
             ),
           ),
           const SizedBox(height: 16),

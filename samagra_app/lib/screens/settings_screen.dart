@@ -143,7 +143,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<AIModel>(
-              value: chatProvider.selectedModel,
+              initialValue: chatProvider.selectedModel,
               items: AIModel.availableModels.map((model) {
                 return DropdownMenuItem<AIModel>(
                   value: model,

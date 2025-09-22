@@ -11,3 +11,6 @@ faiss-cpu
 pypdf
 python-docx
 python-multipart
+requests
+easyocr
+pillow

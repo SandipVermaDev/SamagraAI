@@ -1,7 +1,5 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../models/ai_model.dart';
 import '../models/document_state.dart';
@@ -74,15 +72,24 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> sendMessage(String content, {String? imagePath}) async {
-    if (content.trim().isEmpty && imagePath == null) return;
+  Future<void> sendMessage(
+    String content, {
+    String? imagePath,
+    Uint8List? imageBytes,
+    String? imageName,
+  }) async {
+    if (content.trim().isEmpty && imagePath == null && imageBytes == null) {
+      return;
+    }
 
     // Add user message
     final userMessage = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: content,
       sender: MessageSender.user,
-      type: imagePath != null ? MessageType.image : MessageType.text,
+      type: (imagePath != null || imageBytes != null)
+          ? MessageType.image
+          : MessageType.text,
       timestamp: DateTime.now(),
       imagePath: imagePath,
     );
@@ -106,7 +113,7 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     debugPrint(
-      '[ChatProvider] sendMessage: message="$content" imagePath=$imagePath document=${_documentState.fileName}',
+      '[ChatProvider] sendMessage: message="$content" imagePath=$imagePath imageBytes=${imageBytes?.length} document=${_documentState.fileName}',
     );
     try {
       String? uploadedDocumentName;
@@ -127,6 +134,8 @@ class ChatProvider extends ChangeNotifier {
         model: _selectedModel,
         documentState: _documentState,
         imagePath: imagePath,
+        imageBytes: imageBytes,
+        imageName: imageName,
         uploadedDocumentName: uploadedDocumentName,
       );
 

@@ -18,6 +18,9 @@ class ChatRequest(BaseModel):
     documentBase64: Optional[str] = None
     uploadedDocumentName: Optional[str] = None
     imagePath: Optional[str] = None
+    # Inline image support (base64) - used by web frontend when sending images
+    imageBase64: Optional[str] = None
+    imageName: Optional[str] = None
 
 
 class ChatResponse(BaseModel):

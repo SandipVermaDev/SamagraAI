@@ -22,6 +22,9 @@ async def handle_chat_request(request: ChatRequest):
         message=request.message,
         document_base64=request.documentBase64,
         document_filename=request.document.fileName if request.document else None
+        ,
+        image_base64=request.imageBase64,
+        image_filename=request.imageName,
     )
 
     # 4. Return the reply in the defined response shape

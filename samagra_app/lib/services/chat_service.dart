@@ -22,6 +22,8 @@ class ChatService {
     required AIModel model,
     DocumentState? documentState,
     String? imagePath,
+    Uint8List? imageBytes,
+    String? imageName,
     String? uploadedDocumentName,
   }) async {
     try {
@@ -77,6 +79,18 @@ class ChatService {
 
       if (imagePath != null) {
         body['imagePath'] = imagePath;
+      }
+
+      if (imageBytes != null) {
+        // For web, we have image bytes instead of a file path
+        // TODO: Implement image processing in backend
+        debugPrint(
+          '[ChatService] sendMessage: including image bytes size=${imageBytes.length}',
+        );
+        // For now, just inform that we have image data
+        // Match backend schema: send imageBase64 and imageName
+        body['imageBase64'] = base64Encode(imageBytes);
+        body['imageName'] = imageName ?? 'capture.png';
       }
 
       debugPrint(
@@ -151,8 +165,9 @@ class ChatService {
           // Try common keys for uploaded filename
           final uploadedName =
               data['filename'] ?? data['fileName'] ?? data['name'];
-          if (uploadedName != null && uploadedName is String)
+          if (uploadedName != null && uploadedName is String) {
             return uploadedName;
+          }
         } catch (_) {
           // ignore parse errors
         }
