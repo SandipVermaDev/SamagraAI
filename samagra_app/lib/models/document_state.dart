@@ -8,6 +8,7 @@ class DocumentState {
   final String? filePath;
   final int? fileSize;
   final DateTime? uploadTime;
+  final bool isProcessedByBackend;
 
   const DocumentState({
     this.file,
@@ -16,6 +17,7 @@ class DocumentState {
     this.filePath,
     this.fileSize,
     this.uploadTime,
+    this.isProcessedByBackend = false,
   });
 
   bool get hasDocument => file != null || bytes != null;
@@ -27,6 +29,7 @@ class DocumentState {
     String? filePath,
     int? fileSize,
     DateTime? uploadTime,
+    bool? isProcessedByBackend,
   }) {
     return DocumentState(
       file: file ?? this.file,
@@ -35,6 +38,7 @@ class DocumentState {
       filePath: filePath ?? this.filePath,
       fileSize: fileSize ?? this.fileSize,
       uploadTime: uploadTime ?? this.uploadTime,
+      isProcessedByBackend: isProcessedByBackend ?? this.isProcessedByBackend,
     );
   }
 

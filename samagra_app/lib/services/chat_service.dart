@@ -43,12 +43,11 @@ class ChatService {
         body['uploadedDocumentName'] = uploadedDocumentName;
       }
 
-      // If upload didn't succeed (no uploadedDocumentName) but we have the
-      // document available locally (bytes or file), include it inline as
-      // base64 so the backend can still receive the file in the chat request.
+      // Only include documentBase64 if document hasn't been processed by backend yet
       if (uploadedDocumentName == null &&
           documentState != null &&
-          documentState.hasDocument) {
+          documentState.hasDocument &&
+          !documentState.isProcessedByBackend) {
         try {
           if (documentState.bytes != null) {
             final encoded = base64Encode(documentState.bytes!);
@@ -75,6 +74,11 @@ class ChatService {
             '[ChatService] sendMessage: error encoding document -> $e',
           );
         }
+      } else if (documentState != null && documentState.hasDocument) {
+        // For subsequent questions, just indicate we have a document but don't send the bytes again
+        debugPrint(
+          '[ChatService] sendMessage: document available, using existing processed document for Q&A',
+        );
       }
 
       if (imagePath != null) {

@@ -21,7 +21,7 @@ app.add_middleware(
 
 # Include the router from the api
 app.include_router(chat_router)
-app.include_router(document_router)
+app.include_router(document_router, prefix="/documents")
 
 @app.get("/", tags=["Health Check"])
 async def root():

@@ -21,30 +21,66 @@ try:
 except ImportError:
     _EASYOCR_AVAILABLE = False
 
-# This global variable will hold our document's knowledge in memory.
-# In a real-world application, you would manage this state more robustly.
-vector_store_retriever = None
+# This will hold our document's knowledge in memory.
+# Using a simple class to manage state more robustly
+class DocumentStore:
+    def __init__(self):
+        self.retriever = None
+        self.document_info = None
+    
+    def set_retriever(self, retriever, doc_info=None):
+        self.retriever = retriever
+        self.document_info = doc_info
+        print(f"DocumentStore: Set retriever, active: {self.retriever is not None}")
+    
+    def get_retriever(self):
+        print(f"DocumentStore: Getting retriever, active: {self.retriever is not None}")
+        return self.retriever
+    
+    def clear(self):
+        self.retriever = None
+        self.document_info = None
+        print("DocumentStore: Cleared")
+    
+    def has_retriever(self):
+        return self.retriever is not None
+
+# Global document store instance
+document_store = DocumentStore()
 
 def process_uploaded_document(file_content: bytes):
     """
     Processes the content of an uploaded file and prepares it for Q&A.
     """
-    global vector_store_retriever
+    global document_store
+
+    print(f"process_uploaded_document called with {len(file_content)} bytes")
 
     # 1. Save the uploaded file content to a temporary file on the server.
     #    LangChain's document loaders often work best with file paths.
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
         temp_file.write(file_content)
         temp_file_path = temp_file.name
+        print(f"Created temporary file: {temp_file_path}")
 
     try:
         # 2. Load the document using the PyPDFLoader.
         loader = PyPDFLoader(temp_file_path)
         documents = loader.load()
+        print(f"Loaded {len(documents)} document pages")
+
+        if not documents:
+            print("No content found in document")
+            return False
 
         # 3. Split the document into smaller, manageable chunks.
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         docs = text_splitter.split_documents(documents)
+        print(f"Split document into {len(docs)} chunks")
+
+        if not docs:
+            print("No chunks created from document")
+            return False
 
         # 4. Create the embeddings and the FAISS vector store.
         #    This step converts the text chunks into numerical vectors.
@@ -52,21 +88,30 @@ def process_uploaded_document(file_content: bytes):
             model="models/gemini-embedding-001",
             google_api_key=settings.GOOGLE_API_KEY
         )
+        print("Created embeddings model")
+        
         db = FAISS.from_documents(docs, embeddings)
+        print("Created FAISS database")
 
-        # 5. Make the vector store a "retriever" and save it globally.
-        #    A retriever is an object that can find the most relevant document chunks.
-        vector_store_retriever = db.as_retriever(search_kwargs={"k": 5}) # We'll retrieve the top 5 most relevant chunks.
+        # 5. Make the vector store a "retriever" and save it in our document store.
+        retriever = db.as_retriever(search_kwargs={"k": 5}) # We'll retrieve the top 5 most relevant chunks.
+        document_store.set_retriever(retriever, {"chunks": len(docs), "pages": len(documents)})
 
         print("Document processed successfully. Retriever is ready.")
         return True
 
     except Exception as e:
         print(f"An error occurred during document processing: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     finally:
         # 6. Clean up and remove the temporary file.
-        os.remove(temp_file_path)
+        try:
+            os.remove(temp_file_path)
+            print(f"Cleaned up temporary file: {temp_file_path}")
+        except Exception as e:
+            print(f"Error cleaning up temp file: {e}")
 
 
 def process_uploaded_image(image_content: bytes, filename: Optional[str] = None) -> Optional[str]:
@@ -172,7 +217,8 @@ def process_uploaded_image(image_content: bytes, filename: Optional[str] = None)
             google_api_key=settings.GOOGLE_API_KEY
         )
         db = FAISS.from_documents(docs, embeddings)
-        vector_store_retriever = db.as_retriever(search_kwargs={"k": 5})
+        retriever = db.as_retriever(search_kwargs={"k": 5})
+        document_store.set_retriever(retriever, {"source": "image", "filename": filename})
         
         print("Image text indexed successfully.")
         return extracted_text

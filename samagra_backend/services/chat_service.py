@@ -5,7 +5,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_google_genai import ChatGoogleGenerativeAI
 from core.config import settings
-from services.rag_service import vector_store_retriever, process_uploaded_document, process_uploaded_image
+from services.rag_service import document_store, process_uploaded_document, process_uploaded_image
 
 # 1. Initialize the Language Model
 llm = ChatGoogleGenerativeAI(
@@ -26,7 +26,11 @@ def generate_ai_response(
     It is now "context-aware" and will use the RAG pipeline if a document
     has been processed or if document content is provided via base64.
     """
-    global vector_store_retriever
+    global document_store
+    
+    print(f"generate_ai_response called with: message='{message[:100]}...', has_document={document_base64 is not None}")
+    current_retriever = document_store.get_retriever()
+    print(f"Current retriever state: {current_retriever is not None}")
     
     # If document base64 content is provided, process it
     if document_base64:
@@ -38,8 +42,14 @@ def generate_ai_response(
             
             # Process the document through RAG pipeline
             success = process_uploaded_document(document_bytes)
+            print(f"Document processing result: {success}")
+            current_retriever = document_store.get_retriever()
+            print(f"Vector store retriever after processing: {current_retriever is not None}")
+            
             if success:
                 print("Document processed successfully via base64")
+                # Return a confirmation message that indicates the document is ready
+                return f"Perfect! I've successfully processed your document '{document_filename}'. The document has been indexed and I'm ready to answer questions about its content. What would you like to know?"
             else:
                 print("Failed to process document from base64")
                 return "Sorry, I had trouble processing your document. Please try again."
@@ -63,7 +73,10 @@ def generate_ai_response(
             ocr_text = None
     
     # 1. Check if the retriever has been created
-    if vector_store_retriever is None:
+    current_retriever = document_store.get_retriever()
+    print(f"Checking retriever state: {current_retriever is not None}")
+    
+    if current_retriever is None:
         # If no document is uploaded, behave as a general chatbot
         print("No document loaded. Using general conversation mode.")
         try:
@@ -84,6 +97,7 @@ def generate_ai_response(
     else:
         # If a document is uploaded, use the RAG chain
         print("Document loaded. Using RAG chain for Q&A.")
+        print(f"Question: {message}")
 
         # 2. Create a prompt template for RAG
         template = """
@@ -91,12 +105,14 @@ def generate_ai_response(
         {context}
 
         Question: {question}
+        
+        If you cannot find the answer in the context, say "I couldn't find that information in the document."
         """
         prompt = PromptTemplate.from_template(template)
 
         # 3. Create the RAG chain using LangChain Expression Language (LCEL)
         rag_chain = (
-            {"context": vector_store_retriever, "question": RunnablePassthrough()}
+            {"context": current_retriever, "question": RunnablePassthrough()}
             | prompt
             | llm
             | StrOutputParser()
@@ -104,13 +120,24 @@ def generate_ai_response(
 
         # 4. Invoke the RAG chain with the user's message
         try:
-            # Invoke the RAG chain with the user's message
-            return rag_chain.invoke(message)
+            print("Invoking RAG chain...")
+            # First, let's test the retriever directly
+            relevant_docs = current_retriever.invoke(message)
+            print(f"Found {len(relevant_docs)} relevant documents:")
+            for i, doc in enumerate(relevant_docs):
+                print(f"Doc {i+1}: {doc.page_content[:200]}...")
+            
+            # Now invoke the full RAG chain
+            result = rag_chain.invoke(message)
+            print(f"RAG chain result: {result[:200]}...")
+            return result
         except Exception as e:
             # This will print the DETAILED, REAL error to your terminal
             print("\n" + "="*50)
             print("An error occurred in the RAG Chain:")
             print(e)
+            import traceback
+            traceback.print_exc()
             print("="*50 + "\n")
             return "An error occurred while answering with the document. Check the server terminal for details."
 

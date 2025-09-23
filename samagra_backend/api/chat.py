@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from schemas.chat import ChatRequest, ChatResponse
 from services.chat_service import generate_ai_response
+from services.rag_service import document_store
 
 # 1. Create a new router
 router = APIRouter(tags=["Chat"])
@@ -29,3 +30,12 @@ async def handle_chat_request(request: ChatRequest):
 
     # 4. Return the reply in the defined response shape
     return ChatResponse(reply=ai_reply)
+
+
+@router.delete("/documents")
+async def clear_documents():
+    """
+    Clear all processed documents from memory to allow general chat mode.
+    """
+    document_store.clear()
+    return {"message": "Documents cleared successfully"}

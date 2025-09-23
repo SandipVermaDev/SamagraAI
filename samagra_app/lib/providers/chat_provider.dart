@@ -40,6 +40,7 @@ class ChatProvider extends ChangeNotifier {
         filePath: file.path,
         fileSize: file.lengthSync(),
         uploadTime: DateTime.now(),
+        isProcessedByBackend: false, // Reset processing flag for new document
       );
       debugPrint(
         '[ChatProvider] setDocument: fileName=${_documentState.fileName} size=${_documentState.fileSize}',
@@ -63,6 +64,7 @@ class ChatProvider extends ChangeNotifier {
       filePath: null,
       fileSize: size,
       uploadTime: DateTime.now(),
+      isProcessedByBackend: false, // Reset processing flag for new document
     );
     notifyListeners();
   }
@@ -146,6 +148,19 @@ class ChatProvider extends ChangeNotifier {
           content: aiResponse,
           isLoading: false,
         );
+
+        // If the response indicates document was processed successfully, mark it as processed
+        if (_documentState.hasDocument &&
+            !_documentState.isProcessedByBackend &&
+            (aiResponse.contains('successfully processed') ||
+                aiResponse.contains('indexed') ||
+                aiResponse.contains('ready to answer questions'))) {
+          _documentState = _documentState.copyWith(isProcessedByBackend: true);
+          debugPrint(
+            '[ChatProvider] sendMessage: marked document as processed by backend',
+          );
+        }
+
         notifyListeners();
       }
     } catch (e) {

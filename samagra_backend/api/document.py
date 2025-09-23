@@ -40,3 +40,27 @@ async def upload_document(file: UploadFile = File(...)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {str(e)}"
         )
+
+@router.post("/upload")
+async def upload_document_v2(file: UploadFile = File(...)):
+    """
+    Upload and process a document file (alternative endpoint for frontend compatibility).
+    """
+    try:
+        # Read the file content
+        file_content = await file.read()
+        
+        # Process the document
+        success = process_uploaded_document(file_content)
+        
+        if success:
+            return {
+                "message": f"Document '{file.filename}' uploaded and processed successfully",
+                "filename": file.filename,
+                "size": len(file_content)
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to process document")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing document: {str(e)}")
