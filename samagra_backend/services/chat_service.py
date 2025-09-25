@@ -48,8 +48,11 @@ def generate_ai_response(
             
             if success:
                 print("Document processed successfully via base64")
+                # Get list of all uploaded files
+                file_list = document_store.get_file_list()
+                files_info = ", ".join(file_list)
                 # Return a confirmation message that indicates the document is ready
-                return f"Perfect! I've successfully processed your document '{document_filename}'. The document has been indexed and I'm ready to answer questions about its content. What would you like to know?"
+                return f"Perfect! I've successfully processed your document '{document_filename}'. Now I have access to: {files_info}. I'm ready to answer questions about any of this content. What would you like to know?"
             else:
                 print("Failed to process document from base64")
                 return "Sorry, I had trouble processing your document. Please try again."
@@ -58,45 +61,43 @@ def generate_ai_response(
             return "Sorry, I had trouble processing your document. Please try again."
 
     # If an image is provided inline, attempt to OCR and process it
-    ocr_text = None
     if image_base64:
         print(f"Processing image from base64 content (filename: {image_filename})")
         try:
             image_bytes = base64.b64decode(image_base64)
             ocr_text = process_uploaded_image(image_bytes, image_filename)
             if ocr_text:
-                print(f"Image processed successfully via Google Vision: {len(ocr_text)} characters extracted")
+                print(f"Image processed successfully: {len(ocr_text)} characters extracted and indexed")
+                current_retriever = document_store.get_retriever()
+                print(f"Image text indexed into vector store: {current_retriever is not None}")
+                # Get list of all uploaded files
+                file_list = document_store.get_file_list()
+                files_info = ", ".join(file_list)
+                # Return confirmation message that the image is ready
+                return f"Perfect! I've successfully processed your image '{image_filename}'. Now I have access to: {files_info}. The extracted text: '{ocr_text[:200]}...' What would you like to know about any of this content?"
             else:
                 print("Failed to extract text from image")
+                return "I couldn't extract any readable text from this image. Please try with a clearer image or one that contains text."
         except Exception as e:
             print(f"Error processing base64 image: {e}")
-            ocr_text = None
+            return "Sorry, I had trouble processing your image. Please try again."
     
     # 1. Check if the retriever has been created
     current_retriever = document_store.get_retriever()
     print(f"Checking retriever state: {current_retriever is not None}")
     
     if current_retriever is None:
-        # If no document is uploaded, behave as a general chatbot
-        print("No document loaded. Using general conversation mode.")
+        # If no document or image is uploaded, behave as a general chatbot
+        print("No document or image loaded. Using general conversation mode.")
         try:
-            # If we have OCR text from the image, include it in the prompt
-            if ocr_text:
-                combined_prompt = (
-                    f"Here is text extracted from an image:\n\n{ocr_text}\n\n"
-                    f"Based on this text, please answer: {message}"
-                )
-                ai_response = llm.invoke(combined_prompt)
-                return ai_response.content
-
             ai_response = llm.invoke(message)
             return ai_response.content
         except Exception as e:
             print(f"Error calling AI model: {e}")
             return "Sorry, I'm having trouble thinking right now. Please try again later."
     else:
-        # If a document is uploaded, use the RAG chain
-        print("Document loaded. Using RAG chain for Q&A.")
+        # If a document or image is uploaded, use the RAG chain
+        print("Document/Image loaded. Using RAG chain for Q&A.")
         print(f"Question: {message}")
 
         # 2. Create a prompt template for RAG
@@ -106,7 +107,8 @@ def generate_ai_response(
 
         Question: {question}
         
-        If you cannot find the answer in the context, say "I couldn't find that information in the document."
+        If the context contains relevant information to answer the question, provide a detailed answer.
+        If you cannot find the answer in the context, respond with exactly: "NO_ANSWER_IN_DOCUMENT"
         """
         prompt = PromptTemplate.from_template(template)
 
@@ -127,9 +129,32 @@ def generate_ai_response(
             for i, doc in enumerate(relevant_docs):
                 print(f"Doc {i+1}: {doc.page_content[:200]}...")
             
+            # Check if any relevant documents were found
+            if not relevant_docs or all(len(doc.page_content.strip()) == 0 for doc in relevant_docs):
+                print("No relevant documents found, falling back to general chat")
+                # Fall back to general chat mode
+                try:
+                    ai_response = llm.invoke(message)
+                    return ai_response.content
+                except Exception as e:
+                    print(f"Error in fallback general chat: {e}")
+                    return "Sorry, I'm having trouble thinking right now. Please try again later."
+            
             # Now invoke the full RAG chain
             result = rag_chain.invoke(message)
             print(f"RAG chain result: {result[:200]}...")
+            
+            # Check if the model couldn't find the answer in the document
+            if "NO_ANSWER_IN_DOCUMENT" in result:
+                print("No answer found in document, falling back to general chat")
+                # Fall back to general chat mode
+                try:
+                    ai_response = llm.invoke(message)
+                    return ai_response.content
+                except Exception as e:
+                    print(f"Error in fallback general chat: {e}")
+                    return "Sorry, I'm having trouble thinking right now. Please try again later."
+            
             return result
         except Exception as e:
             # This will print the DETAILED, REAL error to your terminal
@@ -139,5 +164,13 @@ def generate_ai_response(
             import traceback
             traceback.print_exc()
             print("="*50 + "\n")
-            return "An error occurred while answering with the document. Check the server terminal for details."
+            
+            # Fall back to general chat mode in case of error
+            print("RAG chain failed, falling back to general chat")
+            try:
+                ai_response = llm.invoke(message)
+                return ai_response.content
+            except Exception as fallback_error:
+                print(f"Fallback general chat also failed: {fallback_error}")
+                return "Sorry, I'm having trouble thinking right now. Please try again later."
 

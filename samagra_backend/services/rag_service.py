@@ -22,28 +22,67 @@ except ImportError:
     _EASYOCR_AVAILABLE = False
 
 # This will hold our document's knowledge in memory.
-# Using a simple class to manage state more robustly
+# Using a simple class to manage state more robustly with cumulative storage
 class DocumentStore:
     def __init__(self):
+        self.vector_db = None  # FAISS vector database
         self.retriever = None
-        self.document_info = None
+        self.uploaded_files = []  # Track uploaded files
+        self.embeddings = None  # Store embeddings instance for reuse
     
-    def set_retriever(self, retriever, doc_info=None):
-        self.retriever = retriever
-        self.document_info = doc_info
-        print(f"DocumentStore: Set retriever, active: {self.retriever is not None}")
+    def initialize_embeddings(self):
+        """Initialize embeddings if not already done"""
+        if self.embeddings is None:
+            self.embeddings = GoogleGenerativeAIEmbeddings(
+                model="models/gemini-embedding-001",
+                google_api_key=settings.GOOGLE_API_KEY
+            )
+            print("DocumentStore: Initialized embeddings")
+        return self.embeddings
+    
+    def add_documents(self, docs, file_info):
+        """Add new documents to existing vector store or create new one"""
+        embeddings = self.initialize_embeddings()
+        
+        if self.vector_db is None:
+            # Create new vector store
+            print("DocumentStore: Creating new vector store")
+            self.vector_db = FAISS.from_documents(docs, embeddings)
+        else:
+            # Add to existing vector store
+            print("DocumentStore: Adding documents to existing vector store")
+            new_db = FAISS.from_documents(docs, embeddings)
+            self.vector_db.merge_from(new_db)
+        
+        # Update retriever
+        self.retriever = self.vector_db.as_retriever(search_kwargs={"k": 10})  # Increased k for multiple documents
+        
+        # Track uploaded file
+        self.uploaded_files.append(file_info)
+        
+        print(f"DocumentStore: Now contains {len(self.uploaded_files)} files")
+        print(f"DocumentStore: Files: {[f.get('filename', f.get('source', 'unknown')) for f in self.uploaded_files]}")
+        
+        return True
     
     def get_retriever(self):
         print(f"DocumentStore: Getting retriever, active: {self.retriever is not None}")
+        if self.retriever:
+            print(f"DocumentStore: Contains {len(self.uploaded_files)} files")
         return self.retriever
     
     def clear(self):
+        self.vector_db = None
         self.retriever = None
-        self.document_info = None
-        print("DocumentStore: Cleared")
+        self.uploaded_files = []
+        # Keep embeddings instance for reuse
+        print("DocumentStore: Cleared all documents")
     
     def has_retriever(self):
         return self.retriever is not None
+    
+    def get_file_list(self):
+        return [f.get('filename', f.get('source', 'unknown')) for f in self.uploaded_files]
 
 # Global document store instance
 document_store = DocumentStore()
@@ -82,22 +121,20 @@ def process_uploaded_document(file_content: bytes):
             print("No chunks created from document")
             return False
 
-        # 4. Create the embeddings and the FAISS vector store.
-        #    This step converts the text chunks into numerical vectors.
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-001",
-            google_api_key=settings.GOOGLE_API_KEY
-        )
-        print("Created embeddings model")
+        # 4. Add documents to the cumulative vector store
+        file_info = {
+            "type": "document", 
+            "filename": temp_file_path.split("/")[-1], 
+            "chunks": len(docs), 
+            "pages": len(documents)
+        }
         
-        db = FAISS.from_documents(docs, embeddings)
-        print("Created FAISS database")
-
-        # 5. Make the vector store a "retriever" and save it in our document store.
-        retriever = db.as_retriever(search_kwargs={"k": 5}) # We'll retrieve the top 5 most relevant chunks.
-        document_store.set_retriever(retriever, {"chunks": len(docs), "pages": len(documents)})
-
-        print("Document processed successfully. Retriever is ready.")
+        success = document_store.add_documents(docs, file_info)
+        if success:
+            print("Document processed successfully and added to vector store.")
+        else:
+            print("Failed to add document to vector store.")
+            return False
         return True
 
     except Exception as e:
@@ -120,7 +157,7 @@ def process_uploaded_image(image_content: bytes, filename: Optional[str] = None)
     with EasyOCR as fallback. Indexes extracted text into FAISS vector store.
     Returns extracted text on success, None on failure.
     """
-    global vector_store_retriever
+    global document_store
 
     extracted_text = None
 
@@ -203,7 +240,7 @@ def process_uploaded_image(image_content: bytes, filename: Optional[str] = None)
         print("No text could be extracted from image.")
         return None
         
-    # Create LangChain Document and index it
+    # Create LangChain Document and add to cumulative vector store
     try:
         doc = Document(page_content=extracted_text, metadata={"source": filename or "image"})
         
@@ -211,16 +248,22 @@ def process_uploaded_image(image_content: bytes, filename: Optional[str] = None)
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         docs = text_splitter.split_documents([doc])
         
-        # Create embeddings and FAISS vector store
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-001",
-            google_api_key=settings.GOOGLE_API_KEY
-        )
-        db = FAISS.from_documents(docs, embeddings)
-        retriever = db.as_retriever(search_kwargs={"k": 5})
-        document_store.set_retriever(retriever, {"source": "image", "filename": filename})
+        # Add to cumulative vector store
+        file_info = {
+            "type": "image", 
+            "filename": filename or "image", 
+            "source": "image",
+            "chunks": len(docs),
+            "text_length": len(extracted_text)
+        }
         
-        print("Image text indexed successfully.")
+        success = document_store.add_documents(docs, file_info)
+        if success:
+            print("Image text indexed successfully and added to vector store.")
+        else:
+            print("Failed to add image text to vector store.")
+            return extracted_text  # Return text even if indexing fails
+        
         return extracted_text
         
     except Exception as e:

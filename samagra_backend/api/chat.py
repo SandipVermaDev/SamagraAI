@@ -32,6 +32,19 @@ async def handle_chat_request(request: ChatRequest):
     return ChatResponse(reply=ai_reply)
 
 
+@router.get("/documents/status")
+async def get_documents_status():
+    """
+    Get information about currently loaded documents and images.
+    """
+    file_list = document_store.get_file_list()
+    has_content = document_store.has_retriever()
+    return {
+        "has_content": has_content,
+        "file_count": len(file_list),
+        "files": file_list
+    }
+
 @router.delete("/documents")
 async def clear_documents():
     """
