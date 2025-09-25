@@ -43,41 +43,53 @@ class ChatService {
         body['uploadedDocumentName'] = uploadedDocumentName;
       }
 
-      // Only include documentBase64 if document hasn't been processed by backend yet
+      // Send unprocessed documents to backend
       if (uploadedDocumentName == null &&
           documentState != null &&
           documentState.hasDocument &&
-          !documentState.isProcessedByBackend) {
-        try {
-          if (documentState.bytes != null) {
-            final encoded = base64Encode(documentState.bytes!);
-            body['documentBase64'] = encoded;
-            debugPrint(
-              '[ChatService] sendMessage: included documentBase64 (web) size=${documentState.bytes!.length}',
-            );
-          } else if (documentState.file != null) {
-            try {
-              final bytes = await documentState.file!.readAsBytes();
-              final encoded = base64Encode(bytes);
+          !documentState.allProcessed) {
+        // Find first unprocessed document
+        final unprocessedDocs = documentState.documents
+            .where((doc) => !doc.isProcessedByBackend)
+            .toList();
+        final unprocessedDoc = unprocessedDocs.isNotEmpty
+            ? unprocessedDocs.first
+            : null;
+
+        if (unprocessedDoc != null) {
+          try {
+            if (unprocessedDoc.bytes != null) {
+              final encoded = base64Encode(unprocessedDoc.bytes!);
               body['documentBase64'] = encoded;
+              body['documentFilename'] = unprocessedDoc.fileName;
               debugPrint(
-                '[ChatService] sendMessage: included documentBase64 (file) size=${bytes.length}',
+                '[ChatService] sendMessage: included documentBase64 (web) size=${unprocessedDoc.bytes!.length}',
               );
-            } catch (e) {
-              debugPrint(
-                '[ChatService] sendMessage: failed to read file bytes -> $e',
-              );
+            } else if (unprocessedDoc.file != null) {
+              try {
+                final bytes = await unprocessedDoc.file!.readAsBytes();
+                final encoded = base64Encode(bytes);
+                body['documentBase64'] = encoded;
+                body['documentFilename'] = unprocessedDoc.fileName;
+                debugPrint(
+                  '[ChatService] sendMessage: included documentBase64 (file) size=${bytes.length}',
+                );
+              } catch (e) {
+                debugPrint(
+                  '[ChatService] sendMessage: failed to read file bytes -> $e',
+                );
+              }
             }
+          } catch (e) {
+            debugPrint(
+              '[ChatService] sendMessage: error encoding document -> $e',
+            );
           }
-        } catch (e) {
-          debugPrint(
-            '[ChatService] sendMessage: error encoding document -> $e',
-          );
         }
       } else if (documentState != null && documentState.hasDocument) {
-        // For subsequent questions, just indicate we have a document but don't send the bytes again
+        // For subsequent questions, just indicate we have documents but don't send the bytes again
         debugPrint(
-          '[ChatService] sendMessage: document available, using existing processed document for Q&A',
+          '[ChatService] sendMessage: ${documentState.totalDocuments} document(s) available, using existing processed documents for Q&A',
         );
       }
 

@@ -34,7 +34,7 @@ class ChatProvider extends ChangeNotifier {
       _documentState = DocumentState.empty;
       debugPrint('[ChatProvider] setDocument: cleared document');
     } else {
-      _documentState = DocumentState(
+      final document = SingleDocument(
         file: file,
         fileName: file.path.split('/').last.split('\\').last,
         filePath: file.path,
@@ -42,9 +42,29 @@ class ChatProvider extends ChangeNotifier {
         uploadTime: DateTime.now(),
         isProcessedByBackend: false, // Reset processing flag for new document
       );
+      _documentState = _documentState.addDocument(document);
       debugPrint(
-        '[ChatProvider] setDocument: fileName=${_documentState.fileName} size=${_documentState.fileSize}',
+        '[ChatProvider] setDocument: fileName=${document.fileName} size=${document.fileSize}',
       );
+    }
+    notifyListeners();
+  }
+
+  void addMultipleDocuments(List<File> files) {
+    debugPrint(
+      '[ChatProvider] addMultipleDocuments called with ${files.length} files',
+    );
+    for (final file in files) {
+      final document = SingleDocument(
+        file: file,
+        fileName: file.path.split('/').last.split('\\').last,
+        filePath: file.path,
+        fileSize: file.lengthSync(),
+        uploadTime: DateTime.now(),
+        isProcessedByBackend: false,
+      );
+      _documentState = _documentState.addDocument(document);
+      debugPrint('[ChatProvider] Added document: ${document.fileName}');
     }
     notifyListeners();
   }
@@ -58,7 +78,7 @@ class ChatProvider extends ChangeNotifier {
     debugPrint(
       '[ChatProvider] setDocumentFromWeb called name=$name size=$size',
     );
-    _documentState = DocumentState(
+    final document = SingleDocument(
       bytes: bytes,
       fileName: name,
       filePath: null,
@@ -66,6 +86,31 @@ class ChatProvider extends ChangeNotifier {
       uploadTime: DateTime.now(),
       isProcessedByBackend: false, // Reset processing flag for new document
     );
+    _documentState = _documentState.addDocument(document);
+    notifyListeners();
+  }
+
+  void addMultipleDocumentsFromWeb(List<Map<String, dynamic>> files) {
+    debugPrint(
+      '[ChatProvider] addMultipleDocumentsFromWeb called with ${files.length} files',
+    );
+    for (final fileData in files) {
+      final document = SingleDocument(
+        bytes: fileData['bytes'] as Uint8List,
+        fileName: fileData['name'] as String,
+        filePath: null,
+        fileSize: fileData['size'] as int,
+        uploadTime: DateTime.now(),
+        isProcessedByBackend: false,
+      );
+      _documentState = _documentState.addDocument(document);
+      debugPrint('[ChatProvider] Added web document: ${document.fileName}');
+    }
+    notifyListeners();
+  }
+
+  void removeDocument(String fileName) {
+    _documentState = _documentState.removeDocument(fileName);
     notifyListeners();
   }
 
@@ -149,15 +194,15 @@ class ChatProvider extends ChangeNotifier {
           isLoading: false,
         );
 
-        // If the response indicates document was processed successfully, mark it as processed
+        // If the response indicates document was processed successfully, mark all as processed
         if (_documentState.hasDocument &&
-            !_documentState.isProcessedByBackend &&
+            !_documentState.allProcessed &&
             (aiResponse.contains('successfully processed') ||
                 aiResponse.contains('indexed') ||
                 aiResponse.contains('ready to answer questions'))) {
-          _documentState = _documentState.copyWith(isProcessedByBackend: true);
+          _documentState = _documentState.markAllAsProcessed();
           debugPrint(
-            '[ChatProvider] sendMessage: marked document as processed by backend',
+            '[ChatProvider] sendMessage: marked all documents as processed by backend',
           );
         }
 

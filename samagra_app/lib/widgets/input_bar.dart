@@ -270,72 +270,91 @@ class _InputBarState extends State<InputBar> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'md'],
+        allowMultiple: true, // Enable multiple file selection
       );
 
       if (!mounted) return;
 
       debugPrint('[InputBar] _pickDocument: picker result: ${result != null}');
 
-      if (result != null) {
-        final platformFile = result.files.single;
+      if (result != null && result.files.isNotEmpty) {
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
         if (kIsWeb) {
           // Web: FilePicker returns bytes
-          if (platformFile.bytes != null) {
-            final bytes = platformFile.bytes!;
-            final chatProvider = Provider.of<ChatProvider>(
-              context,
-              listen: false,
-            );
-            chatProvider.setDocumentFromWeb(
-              bytes: bytes,
-              name: platformFile.name,
-              size: bytes.length,
-            );
-            debugPrint(
-              '[InputBar] _pickDocument: web file name=${platformFile.name} size=${bytes.length}',
-            );
+          final webFiles = <Map<String, dynamic>>[];
+
+          for (final platformFile in result.files) {
+            if (platformFile.bytes != null) {
+              webFiles.add({
+                'bytes': platformFile.bytes!,
+                'name': platformFile.name,
+                'size': platformFile.bytes!.length,
+              });
+              debugPrint(
+                '[InputBar] _pickDocument: web file name=${platformFile.name} size=${platformFile.bytes!.length}',
+              );
+            } else {
+              debugPrint(
+                '[InputBar] _pickDocument: web file bytes are null for ${platformFile.name}',
+              );
+            }
+          }
+
+          if (webFiles.isNotEmpty) {
+            chatProvider.addMultipleDocumentsFromWeb(webFiles);
 
             if (mounted) {
+              final fileNames = webFiles
+                  .map((f) => f['name'] as String)
+                  .join(', ');
               messenger.showSnackBar(
                 SnackBar(
-                  content: Text('Document "${platformFile.name}" added'),
+                  content: Text(
+                    '${webFiles.length} document(s) added: $fileNames',
+                  ),
                   backgroundColor: AppColors.success,
                 ),
               );
             }
-          } else {
-            debugPrint('[InputBar] _pickDocument: web file bytes are null');
           }
         } else {
           // Mobile/desktop: use path
-          if (platformFile.path != null) {
-            final file = File(platformFile.path!);
-            debugPrint(
-              '[InputBar] _pickDocument: selected file path=${file.path} size=${file.lengthSync()}',
-            );
+          final files = <File>[];
 
-            final chatProvider = Provider.of<ChatProvider>(
-              context,
-              listen: false,
-            );
-            chatProvider.setDocument(file);
+          for (final platformFile in result.files) {
+            if (platformFile.path != null) {
+              final file = File(platformFile.path!);
+              files.add(file);
+              debugPrint(
+                '[InputBar] _pickDocument: selected file path=${file.path} size=${file.lengthSync()}',
+              );
+            } else {
+              debugPrint(
+                '[InputBar] _pickDocument: platform file path is null for ${platformFile.name}',
+              );
+            }
+          }
+
+          if (files.isNotEmpty) {
+            chatProvider.addMultipleDocuments(files);
             debugPrint(
-              '[InputBar] _pickDocument: chatProvider.setDocument called',
+              '[InputBar] _pickDocument: chatProvider.addMultipleDocuments called',
             );
 
             if (mounted) {
+              final fileNames = files
+                  .map((f) => f.path.split('/').last.split('\\').last)
+                  .join(', ');
               messenger.showSnackBar(
                 SnackBar(
-                  content: Text('Document "${platformFile.name}" added'),
+                  content: Text(
+                    '${files.length} document(s) added: $fileNames',
+                  ),
                   backgroundColor: AppColors.success,
                 ),
               );
             }
-          } else {
-            debugPrint(
-              '[InputBar] _pickDocument: platform file path is null (non-web)',
-            );
           }
         }
       } else {
