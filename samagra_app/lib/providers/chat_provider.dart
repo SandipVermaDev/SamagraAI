@@ -13,6 +13,8 @@ class ChatProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _showInputPreview =
       true; // Controls visibility of document preview above input bar
+  // File names of documents staged for the next message (UI preview above input)
+  final List<String> _pendingAttachmentNames = [];
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   AIModel get selectedModel => _selectedModel;
@@ -20,6 +22,9 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get hasActiveDocument => _documentState.hasDocument;
   bool get showInputPreview => _showInputPreview && _documentState.hasDocument;
+  List<SingleDocument> get pendingDocuments => _documentState.documents
+      .where((d) => _pendingAttachmentNames.contains(d.fileName))
+      .toList();
 
   /// Test backend connectivity
   Future<bool> testBackendConnection() async {
@@ -46,6 +51,9 @@ class ChatProvider extends ChangeNotifier {
         isProcessedByBackend: false, // Reset processing flag for new document
       );
       _documentState = _documentState.addDocument(document);
+      if (!_pendingAttachmentNames.contains(document.fileName)) {
+        _pendingAttachmentNames.add(document.fileName);
+      }
       debugPrint(
         '[ChatProvider] setDocument: fileName=${document.fileName} size=${document.fileSize}',
       );
@@ -68,6 +76,9 @@ class ChatProvider extends ChangeNotifier {
         isProcessedByBackend: false,
       );
       _documentState = _documentState.addDocument(document);
+      if (!_pendingAttachmentNames.contains(document.fileName)) {
+        _pendingAttachmentNames.add(document.fileName);
+      }
       debugPrint('[ChatProvider] Added document: ${document.fileName}');
     }
     _showInputPreview = true; // Show preview when new documents are added
@@ -92,6 +103,9 @@ class ChatProvider extends ChangeNotifier {
       isProcessedByBackend: false, // Reset processing flag for new document
     );
     _documentState = _documentState.addDocument(document);
+    if (!_pendingAttachmentNames.contains(document.fileName)) {
+      _pendingAttachmentNames.add(document.fileName);
+    }
     notifyListeners();
   }
 
@@ -109,6 +123,9 @@ class ChatProvider extends ChangeNotifier {
         isProcessedByBackend: false,
       );
       _documentState = _documentState.addDocument(document);
+      if (!_pendingAttachmentNames.contains(document.fileName)) {
+        _pendingAttachmentNames.add(document.fileName);
+      }
       debugPrint('[ChatProvider] Added web document: ${document.fileName}');
     }
     _showInputPreview = true; // Show preview when new documents are added
@@ -117,6 +134,7 @@ class ChatProvider extends ChangeNotifier {
 
   void removeDocument(String fileName) {
     _documentState = _documentState.removeDocument(fileName);
+    _pendingAttachmentNames.remove(fileName);
     notifyListeners();
   }
 
@@ -124,6 +142,7 @@ class ChatProvider extends ChangeNotifier {
     _documentState = DocumentState.empty;
     _showInputPreview =
         true; // Reset preview visibility when clearing documents
+    _pendingAttachmentNames.clear();
     notifyListeners();
   }
 
@@ -134,6 +153,13 @@ class ChatProvider extends ChangeNotifier {
 
   void resetInputPreview() {
     _showInputPreview = true;
+    notifyListeners();
+  }
+
+  // Clear only the staged (pending) attachments but keep the indexed documents
+  void clearPendingAttachments() {
+    _pendingAttachmentNames.clear();
+    _showInputPreview = false; // hide preview since nothing staged
     notifyListeners();
   }
 
@@ -159,10 +185,9 @@ class ChatProvider extends ChangeNotifier {
           : MessageType.text,
       timestamp: DateTime.now(),
       imagePath: imagePath,
-      // Attach documents to THIS message only when the input preview
-      // is currently being shown (i.e., user just selected them).
+      // Attach only currently staged documents to THIS message
       attachedDocuments: (_documentState.hasDocument && _showInputPreview)
-          ? _documentState.fileNames
+          ? List<String>.from(_pendingAttachmentNames)
           : null,
     );
 
@@ -242,8 +267,9 @@ class ChatProvider extends ChangeNotifier {
         // Hide input preview after successful message send (keep documents for top banner)
         if (_documentState.hasDocument && _showInputPreview) {
           hideInputPreview();
+          _pendingAttachmentNames.clear();
           debugPrint(
-            '[ChatProvider] sendMessage: hid input preview after successful send',
+            '[ChatProvider] sendMessage: hid input preview & cleared staged documents after successful send',
           );
         }
 

@@ -35,7 +35,7 @@ class InputAreaWithPreview extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: DocumentPreview(
-                  documents: chatProvider.documentState.documents,
+                  documents: chatProvider.pendingDocuments,
                   isCompact: true,
                   onRemove: () {
                     _showRemoveDocumentsDialog(context, chatProvider);
