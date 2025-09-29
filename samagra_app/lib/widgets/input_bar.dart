@@ -5,9 +5,12 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/web_speech.dart';
 
 class InputBar extends StatefulWidget {
   const InputBar({super.key});
@@ -21,6 +24,12 @@ class _InputBarState extends State<InputBar> {
   final FocusNode _focusNode = FocusNode();
   bool _isRecording = false;
   bool _hasText = false;
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechAvailable = false;
+  String _preMicText = '';
+  WebSpeechRecognizer? _webSpeech; // Web fallback
+  bool _usingWebSpeech = false;
+  bool _isStarting = false;
 
   @override
   void initState() {
@@ -43,6 +52,48 @@ class _InputBarState extends State<InputBar> {
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _initSpeech() async {
+    try {
+      _speechAvailable = await _speech.initialize(
+        onStatus: _onSpeechStatus,
+        onError: _onSpeechError,
+        debugLogging: false,
+      );
+    } catch (e) {
+      debugPrint('[InputBar] Speech init error: $e');
+      _speechAvailable = false;
+    }
+    // On web, if plugin isn't available, try Web Speech API fallback
+    if (kIsWeb && !_speechAvailable) {
+      _webSpeech ??= WebSpeechRecognizer();
+      try {
+        await _webSpeech!.initialize();
+      } catch (e) {
+        debugPrint('[InputBar] WebSpeech init error: $e');
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _onSpeechStatus(String status) {
+    debugPrint('[InputBar] Speech status: $status');
+    // Keep icon in sync with plugin status
+    if (!_usingWebSpeech && mounted) {
+      final isNowListening = status == 'listening';
+      if (_isRecording != isNowListening) {
+        setState(() => _isRecording = isNowListening);
+      }
+    }
+  }
+
+  void _onSpeechError(dynamic error) {
+    try {
+      debugPrint('[InputBar] Speech error: ${error.errorMsg}');
+    } catch (_) {
+      debugPrint('[InputBar] Speech error: $error');
+    }
   }
 
   @override
@@ -174,6 +225,9 @@ class _InputBarState extends State<InputBar> {
   void _sendMessage(ChatProvider chatProvider) {
     final text = _textController.text.trim();
     if (text.isNotEmpty) {
+      if (_isRecording) {
+        _stopListening();
+      }
       chatProvider.sendMessage(text);
       _textController.clear();
       setState(() {
@@ -441,29 +495,144 @@ class _InputBarState extends State<InputBar> {
   // No confirm dialog flow for images; staged image shows above input until message is sent.
 
   void _toggleRecording() {
-    setState(() {
-      _isRecording = !_isRecording;
-    });
-
     if (_isRecording) {
-      // TODO: Start audio recording
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Voice recording feature coming soon!'),
-          backgroundColor: AppColors.info,
-        ),
-      );
-      // For now, just toggle back
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-          setState(() {
-            _isRecording = false;
-          });
-        }
-      });
-    } else {
-      // TODO: Stop audio recording and process
+      _stopListening();
+      return;
     }
+    _startListening();
+  }
+
+  Future<void> _startListening() async {
+    if (_isStarting) return; // Prevent re-entrancy
+    // Ensure speech is initialized
+    if (!_speechAvailable) {
+      await _initSpeech();
+    }
+
+    // Choose provider: prefer plugin when available; else use web fallback (on web)
+    if (kIsWeb && !_speechAvailable) {
+      // Try web fallback
+      _webSpeech ??= WebSpeechRecognizer();
+      await _webSpeech!.initialize();
+      if (!(_webSpeech!.isSupported)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Speech recognition is not available here. On web, only some browsers support it.',
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Request microphone permission (mobile/desktop)
+    if (!kIsWeb) {
+      final status = await Permission.microphone.request();
+      if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Microphone permission is required.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    // If plugin already listening, just reflect UI
+    if (_speechAvailable && _speech.isListening) {
+      if (mounted) {
+        setState(() {
+          _isRecording = true;
+          _usingWebSpeech = false;
+        });
+      }
+      return;
+    }
+
+    _preMicText = _textController.text;
+    _isStarting = true;
+    if (kIsWeb && !_speechAvailable && (_webSpeech?.isSupported ?? false)) {
+      final didStart = await _webSpeech!.start(
+        onResult: _onWebSpeechResult,
+        maxListen: const Duration(minutes: 2),
+        pauseFor: const Duration(seconds: 3),
+      );
+      if (didStart == true && mounted) {
+        setState(() {
+          _isRecording = true;
+          _usingWebSpeech = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Listening… (Web Speech API)'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } else {
+      final didStart = await _speech.listen(
+        onResult: _onSpeechResult,
+        listenFor: const Duration(minutes: 2),
+        pauseFor: const Duration(seconds: 3),
+        partialResults: true,
+        cancelOnError: true,
+        listenMode: stt.ListenMode.dictation,
+      );
+      if (didStart == true && mounted) {
+        setState(() {
+          _isRecording = true;
+          _usingWebSpeech = false;
+        });
+      }
+    }
+    _isStarting = false;
+  }
+
+  void _onSpeechResult(dynamic result) {
+    String spoken = '';
+    try {
+      spoken = result.recognizedWords as String;
+    } catch (_) {
+      try {
+        spoken = result.toString();
+      } catch (_) {}
+    }
+    if (spoken.isEmpty) return;
+    final prefix = _preMicText.trim();
+    final text = prefix.isEmpty ? spoken : '$prefix ${spoken.trim()}';
+    _textController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    if (mounted && !_isRecording && (_speech.isListening)) {
+      setState(() => _isRecording = true);
+    }
+  }
+
+  Future<void> _stopListening() async {
+    try {
+      if (_usingWebSpeech) {
+        await _webSpeech?.stop();
+      } else {
+        await _speech.stop();
+      }
+    } catch (_) {}
+    _isStarting = false;
+    if (mounted) setState(() => _isRecording = false);
+  }
+
+  void _onWebSpeechResult(String text, bool isFinal) {
+    if (text.isEmpty) return;
+    final prefix = _preMicText.trim();
+    final combined = prefix.isEmpty ? text : '$prefix ${text.trim()}';
+    _textController.value = TextEditingValue(
+      text: combined,
+      selection: TextSelection.collapsed(offset: combined.length),
+    );
+    // If result is final and there was no prior text, keep listening until user stops
   }
 }
 

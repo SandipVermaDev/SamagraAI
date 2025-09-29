@@ -47,6 +47,8 @@ dependencies:
   
   # Audio recording
   flutter_sound: ^9.28.0
+  # Speech recognition
+  speech_to_text: ^7.3.0
   
   # State management
   provider: ^6.1.5+1
