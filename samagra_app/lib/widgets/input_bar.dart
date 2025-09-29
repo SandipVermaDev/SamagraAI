@@ -354,13 +354,14 @@ class _InputBarState extends State<InputBar> {
       debugPrint('[InputBar] _pickImage: picked=${image != null}');
 
       if (image != null) {
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
         if (kIsWeb) {
-          // On web, we need to read bytes instead of using file path
           final bytes = await image.readAsBytes();
-          await _handleSelectedImageFromBytes(bytes, image.name);
+          chatProvider.setPendingImageFromBytes(bytes, image.name);
         } else {
-          await _handleSelectedImage(image.path);
+          chatProvider.setPendingImageFromPath(image.path, image.name);
         }
+        // No popup; image now appears above the input like documents
       }
     } catch (e, st) {
       debugPrint('[InputBar] _pickImage: error -> $e');
@@ -391,12 +392,14 @@ class _InputBarState extends State<InputBar> {
       debugPrint('[InputBar] _takePhoto: captured=${image != null}');
 
       if (image != null) {
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
         if (kIsWeb) {
           final bytes = await image.readAsBytes();
-          await _handleSelectedImageFromBytes(bytes, image.name);
+          chatProvider.setPendingImageFromBytes(bytes, image.name);
         } else {
-          await _handleSelectedImage(image.path);
+          chatProvider.setPendingImageFromPath(image.path, image.name);
         }
+        // No popup; image now appears above the input like documents
       }
     } catch (e, st) {
       debugPrint('[InputBar] _takePhoto: error -> $e');
@@ -435,50 +438,7 @@ class _InputBarState extends State<InputBar> {
         false;
   }
 
-  Future<void> _handleSelectedImage(String imagePath) async {
-    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-
-    // Show dialog to confirm sending image with optional message
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => _ImageConfirmDialog(imagePath: imagePath),
-    );
-
-    if (result != null) {
-      if (mounted) {
-        final imageName = imagePath.split('/').last.split('\\').last;
-        await chatProvider.sendMessage(
-          result['message'] ?? '',
-          imagePath: imagePath,
-          imageName: imageName,
-        );
-      }
-    }
-  }
-
-  Future<void> _handleSelectedImageFromBytes(
-    Uint8List imageBytes,
-    String imageName,
-  ) async {
-    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-
-    // Show dialog to confirm sending image with optional message
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) =>
-          _ImageConfirmDialog(imageBytes: imageBytes, imageName: imageName),
-    );
-
-    if (result != null) {
-      if (mounted) {
-        await chatProvider.sendMessage(
-          result['message'] ?? '',
-          imageBytes: imageBytes,
-          imageName: imageName,
-        );
-      }
-    }
-  }
+  // No confirm dialog flow for images; staged image shows above input until message is sent.
 
   void _toggleRecording() {
     setState(() {
@@ -507,76 +467,4 @@ class _InputBarState extends State<InputBar> {
   }
 }
 
-class _ImageConfirmDialog extends StatefulWidget {
-  final String? imagePath;
-  final Uint8List? imageBytes;
-  final String? imageName;
-
-  const _ImageConfirmDialog({this.imagePath, this.imageBytes, this.imageName})
-    : assert(
-        (imagePath != null) || (imageBytes != null && imageName != null),
-        'Either imagePath or both imageBytes and imageName must be provided',
-      );
-
-  @override
-  State<_ImageConfirmDialog> createState() => _ImageConfirmDialogState();
-}
-
-class _ImageConfirmDialogState extends State<_ImageConfirmDialog> {
-  final TextEditingController _messageController = TextEditingController();
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Send Image'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Image preview
-          Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Theme.of(context).colorScheme.outline),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: widget.imageBytes != null
-                  ? Image.memory(widget.imageBytes!, fit: BoxFit.cover)
-                  : Image.file(File(widget.imagePath!), fit: BoxFit.cover),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Optional message input
-          TextField(
-            controller: _messageController,
-            decoration: const InputDecoration(
-              hintText: 'Add a message (optional)...',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.pop(context, {'message': _messageController.text.trim()});
-          },
-          child: const Text('Send'),
-        ),
-      ],
-    );
-  }
-}
+// Removed image confirm dialog; images follow the same staging UX as documents.

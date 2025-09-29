@@ -60,7 +60,7 @@ def generate_ai_response(
             print(f"Error processing base64 document: {e}")
             return "Sorry, I had trouble processing your document. Please try again."
 
-    # If an image is provided inline, attempt to OCR and process it
+    # If an image is provided inline, attempt to OCR and process it, then continue to answer the question via RAG
     if image_base64:
         print(f"Processing image from base64 content (filename: {image_filename})")
         try:
@@ -68,19 +68,13 @@ def generate_ai_response(
             ocr_text = process_uploaded_image(image_bytes, image_filename)
             if ocr_text:
                 print(f"Image processed successfully: {len(ocr_text)} characters extracted and indexed")
+                # Refresh retriever and continue below to RAG flow using the user's message
                 current_retriever = document_store.get_retriever()
                 print(f"Image text indexed into vector store: {current_retriever is not None}")
-                # Get list of all uploaded files
-                file_list = document_store.get_file_list()
-                files_info = ", ".join(file_list)
-                # Return confirmation message that the image is ready
-                return f"Perfect! I've successfully processed your image '{image_filename}'. Now I have access to: {files_info}. The extracted text: '{ocr_text[:200]}...' What would you like to know about any of this content?"
             else:
-                print("Failed to extract text from image")
-                return "I couldn't extract any readable text from this image. Please try with a clearer image or one that contains text."
+                print("Failed to extract text from image; proceeding without image context")
         except Exception as e:
-            print(f"Error processing base64 image: {e}")
-            return "Sorry, I had trouble processing your image. Please try again."
+            print(f"Error processing base64 image: {e}; proceeding without image context")
     
     # 1. Check if the retriever has been created
     current_retriever = document_store.get_retriever()

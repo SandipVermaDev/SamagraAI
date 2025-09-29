@@ -15,16 +15,25 @@ class ChatProvider extends ChangeNotifier {
       true; // Controls visibility of document preview above input bar
   // File names of documents staged for the next message (UI preview above input)
   final List<String> _pendingAttachmentNames = [];
+  // Pending image (for next message only)
+  String? _pendingImagePath;
+  Uint8List? _pendingImageBytes;
+  String? _pendingImageName;
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   AIModel get selectedModel => _selectedModel;
   DocumentState get documentState => _documentState;
   bool get isLoading => _isLoading;
   bool get hasActiveDocument => _documentState.hasDocument;
-  bool get showInputPreview => _showInputPreview && _documentState.hasDocument;
+  bool get hasPendingImage => _pendingImagePath != null || _pendingImageBytes != null;
+  bool get showInputPreview =>
+    _showInputPreview && (_pendingAttachmentNames.isNotEmpty || hasPendingImage);
   List<SingleDocument> get pendingDocuments => _documentState.documents
       .where((d) => _pendingAttachmentNames.contains(d.fileName))
       .toList();
+  String? get pendingImagePath => _pendingImagePath;
+  Uint8List? get pendingImageBytes => _pendingImageBytes;
+  String? get pendingImageName => _pendingImageName;
 
   /// Test backend connectivity
   Future<bool> testBackendConnection() async {
@@ -163,6 +172,30 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Pending image controls
+  void setPendingImageFromPath(String path, String name) {
+    _pendingImagePath = path;
+    _pendingImageBytes = null;
+    _pendingImageName = name;
+    _showInputPreview = true;
+    notifyListeners();
+  }
+
+  void setPendingImageFromBytes(Uint8List bytes, String name) {
+    _pendingImageBytes = bytes;
+    _pendingImagePath = null;
+    _pendingImageName = name;
+    _showInputPreview = true;
+    notifyListeners();
+  }
+
+  void clearPendingImage() {
+    _pendingImagePath = null;
+    _pendingImageBytes = null;
+    _pendingImageName = null;
+    notifyListeners();
+  }
+
   Future<void> sendMessage(
     String content, {
     String? imagePath,
@@ -174,6 +207,7 @@ class ChatProvider extends ChangeNotifier {
     }
 
     // Add user message
+    final bool includeImage = hasPendingImage;
     final userMessage = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: content,
@@ -184,7 +218,9 @@ class ChatProvider extends ChangeNotifier {
           ? MessageType.document
           : MessageType.text,
       timestamp: DateTime.now(),
-      imagePath: imagePath,
+      imagePath: includeImage ? _pendingImagePath : null,
+      imageBytes: includeImage ? _pendingImageBytes : null,
+      imageName: includeImage ? _pendingImageName : null,
       // Attach only currently staged documents to THIS message
       attachedDocuments: (_documentState.hasDocument && _showInputPreview)
           ? List<String>.from(_pendingAttachmentNames)
@@ -211,8 +247,10 @@ class ChatProvider extends ChangeNotifier {
 
     debugPrint('[ChatProvider] sendMessage:');
     debugPrint('  message="${content.replaceAll('\n', ' ')}"');
-    if (imagePath != null) debugPrint('  imagePath=$imagePath');
-    if (imageBytes != null) debugPrint('  imageBytes=${imageBytes.length}');
+    if (includeImage) {
+      if (_pendingImagePath != null) debugPrint('  imagePath=$_pendingImagePath');
+      if (_pendingImageBytes != null) debugPrint('  imageBytes=${_pendingImageBytes!.length}');
+    }
     if (_documentState.hasDocument) {
       final pending = _documentState.documents
           .where((d) => !d.isProcessedByBackend)
@@ -246,9 +284,9 @@ class ChatProvider extends ChangeNotifier {
         message: content,
         model: _selectedModel,
         documentState: _documentState,
-        imagePath: imagePath,
-        imageBytes: imageBytes,
-        imageName: imageName,
+        imagePath: includeImage ? _pendingImagePath : null,
+        imageBytes: includeImage ? _pendingImageBytes : null,
+        imageName: includeImage ? _pendingImageName : null,
         uploadedDocumentName: uploadedDocumentName,
       );
 
@@ -265,11 +303,12 @@ class ChatProvider extends ChangeNotifier {
         // when uploads succeed above. Left here intentionally minimal.
 
         // Hide input preview after successful message send (keep documents for top banner)
-        if (_documentState.hasDocument && _showInputPreview) {
-          hideInputPreview();
-          _pendingAttachmentNames.clear();
+        if (_showInputPreview) {
+          hideInputPreview(); // hides preview banner
+          _pendingAttachmentNames.clear(); // clear staged docs
+          clearPendingImage(); // clear staged image
           debugPrint(
-            '[ChatProvider] sendMessage: hid input preview & cleared staged documents after successful send',
+            '[ChatProvider] sendMessage: cleared staged docs/images and hid preview after successful send',
           );
         }
 

@@ -108,24 +108,31 @@ class MessageBubble extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.file(
-          File(message.imagePath!),
-          height: 200,
-          width: 200,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              height: 200,
-              width: 200,
-              color: Colors.grey[300],
-              child: const Icon(
-                Icons.broken_image,
-                color: Colors.grey,
-                size: 48,
+        child: message.imageBytes != null
+            ? Image.memory(
+                message.imageBytes!,
+                height: 200,
+                width: 200,
+                fit: BoxFit.cover,
+              )
+            : Image.file(
+                File(message.imagePath!),
+                height: 200,
+                width: 200,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 200,
+                    width: 200,
+                    color: Colors.grey[300],
+                    child: const Icon(
+                      Icons.broken_image,
+                      color: Colors.grey,
+                      size: 48,
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
     );
   }

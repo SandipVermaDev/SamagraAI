@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 enum MessageType { text, image, document, audio }
 
 enum MessageSender { user, ai }
@@ -10,6 +12,8 @@ class ChatMessage {
   final DateTime timestamp;
   final bool isLoading;
   final String? imagePath;
+  final Uint8List? imageBytes;
+  final String? imageName;
   final String? documentPath;
   final String? documentName;
   final String? audioPath;
@@ -24,6 +28,8 @@ class ChatMessage {
     required this.timestamp,
     this.isLoading = false,
     this.imagePath,
+    this.imageBytes,
+    this.imageName,
     this.documentPath,
     this.documentName,
     this.audioPath,
@@ -38,6 +44,8 @@ class ChatMessage {
     DateTime? timestamp,
     bool? isLoading,
     String? imagePath,
+    Uint8List? imageBytes,
+    String? imageName,
     String? documentPath,
     String? documentName,
     String? audioPath,
@@ -51,6 +59,8 @@ class ChatMessage {
       timestamp: timestamp ?? this.timestamp,
       isLoading: isLoading ?? this.isLoading,
       imagePath: imagePath ?? this.imagePath,
+      imageBytes: imageBytes ?? this.imageBytes,
+      imageName: imageName ?? this.imageName,
       documentPath: documentPath ?? this.documentPath,
       documentName: documentName ?? this.documentName,
       audioPath: audioPath ?? this.audioPath,
@@ -58,7 +68,8 @@ class ChatMessage {
     );
   }
 
-  bool get hasImage => imagePath != null && imagePath!.isNotEmpty;
+  bool get hasImage =>
+      (imagePath != null && imagePath!.isNotEmpty) || imageBytes != null;
   bool get hasDocument => documentPath != null && documentPath!.isNotEmpty;
   bool get hasAudio => audioPath != null && audioPath!.isNotEmpty;
   bool get hasAttachedDocuments =>

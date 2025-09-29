@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
@@ -34,12 +35,20 @@ class InputAreaWithPreview extends StatelessWidget {
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: DocumentPreview(
-                  documents: chatProvider.pendingDocuments,
-                  isCompact: true,
-                  onRemove: () {
-                    _showRemoveDocumentsDialog(context, chatProvider);
-                  },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (chatProvider.pendingDocuments.isNotEmpty)
+                      DocumentPreview(
+                        documents: chatProvider.pendingDocuments,
+                        isCompact: true,
+                        onRemove: () {
+                          _showRemoveDocumentsDialog(context, chatProvider);
+                        },
+                      ),
+                    if (chatProvider.hasPendingImage) _PendingImageChip(),
+                  ],
                 ),
               ),
 
@@ -80,6 +89,70 @@ class InputAreaWithPreview extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _PendingImageChip extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+
+    final borderColor = (themeProvider.isDarkMode ? Colors.white : Colors.black)
+        .withOpacity(0.1);
+
+    Widget imageWidget;
+    if (chatProvider.pendingImageBytes != null) {
+      imageWidget = Image.memory(
+        chatProvider.pendingImageBytes!,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+      );
+    } else if (chatProvider.pendingImagePath != null) {
+      imageWidget = Image.file(
+        File(chatProvider.pendingImagePath!),
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+      );
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: borderColor),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: imageWidget,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              chatProvider.pendingImageName ?? 'Image',
+              style: Theme.of(context).textTheme.bodySmall,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: () {
+              chatProvider.clearPendingImage();
+            },
+            tooltip: 'Remove',
+          ),
+        ],
+      ),
     );
   }
 }
