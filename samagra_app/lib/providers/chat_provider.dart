@@ -11,12 +11,15 @@ class ChatProvider extends ChangeNotifier {
   AIModel _selectedModel = AIModel.getDefault();
   DocumentState _documentState = DocumentState.empty;
   bool _isLoading = false;
+  bool _showInputPreview =
+      true; // Controls visibility of document preview above input bar
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   AIModel get selectedModel => _selectedModel;
   DocumentState get documentState => _documentState;
   bool get isLoading => _isLoading;
   bool get hasActiveDocument => _documentState.hasDocument;
+  bool get showInputPreview => _showInputPreview && _documentState.hasDocument;
 
   /// Test backend connectivity
   Future<bool> testBackendConnection() async {
@@ -47,6 +50,7 @@ class ChatProvider extends ChangeNotifier {
         '[ChatProvider] setDocument: fileName=${document.fileName} size=${document.fileSize}',
       );
     }
+    _showInputPreview = true; // Show preview when new document is set
     notifyListeners();
   }
 
@@ -66,6 +70,7 @@ class ChatProvider extends ChangeNotifier {
       _documentState = _documentState.addDocument(document);
       debugPrint('[ChatProvider] Added document: ${document.fileName}');
     }
+    _showInputPreview = true; // Show preview when new documents are added
     notifyListeners();
   }
 
@@ -106,6 +111,7 @@ class ChatProvider extends ChangeNotifier {
       _documentState = _documentState.addDocument(document);
       debugPrint('[ChatProvider] Added web document: ${document.fileName}');
     }
+    _showInputPreview = true; // Show preview when new documents are added
     notifyListeners();
   }
 
@@ -116,6 +122,18 @@ class ChatProvider extends ChangeNotifier {
 
   void clearDocument() {
     _documentState = DocumentState.empty;
+    _showInputPreview =
+        true; // Reset preview visibility when clearing documents
+    notifyListeners();
+  }
+
+  void hideInputPreview() {
+    _showInputPreview = false;
+    notifyListeners();
+  }
+
+  void resetInputPreview() {
+    _showInputPreview = true;
     notifyListeners();
   }
 
@@ -136,9 +154,16 @@ class ChatProvider extends ChangeNotifier {
       sender: MessageSender.user,
       type: (imagePath != null || imageBytes != null)
           ? MessageType.image
+          : _documentState.hasDocument
+          ? MessageType.document
           : MessageType.text,
       timestamp: DateTime.now(),
       imagePath: imagePath,
+      // Attach documents to THIS message only when the input preview
+      // is currently being shown (i.e., user just selected them).
+      attachedDocuments: (_documentState.hasDocument && _showInputPreview)
+          ? _documentState.fileNames
+          : null,
     );
 
     _messages.add(userMessage);
@@ -159,21 +184,37 @@ class ChatProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    debugPrint(
-      '[ChatProvider] sendMessage: message="$content" imagePath=$imagePath imageBytes=${imageBytes?.length} document=${_documentState.fileName}',
-    );
+    debugPrint('[ChatProvider] sendMessage:');
+    debugPrint('  message="${content.replaceAll('\n', ' ')}"');
+    if (imagePath != null) debugPrint('  imagePath=$imagePath');
+    if (imageBytes != null) debugPrint('  imageBytes=${imageBytes.length}');
+    if (_documentState.hasDocument) {
+      final pending = _documentState.documents
+          .where((d) => !d.isProcessedByBackend)
+          .map((d) => d.fileName)
+          .toList();
+      debugPrint('  documents total=${_documentState.totalDocuments}');
+      debugPrint(
+        '  pendingProcess=${pending.isEmpty ? 'none' : pending.join(', ')}',
+      );
+    }
     try {
-      String? uploadedDocumentName;
-      if (_documentState.hasDocument) {
-        debugPrint(
-          '[ChatProvider] sendMessage: uploading document before sending message',
-        );
-        uploadedDocumentName = await _chatService.uploadDocument(
-          _documentState,
-        );
-        debugPrint(
-          '[ChatProvider] sendMessage: uploadedDocumentName=$uploadedDocumentName',
-        );
+      // Upload any unprocessed documents first (support multiple)
+      String? uploadedDocumentName; // kept for backward compatibility
+      if (_documentState.hasDocument && !_documentState.allProcessed) {
+        final unprocessedDocs = _documentState.documents
+            .where((d) => !d.isProcessedByBackend)
+            .toList();
+        for (final doc in unprocessedDocs) {
+          debugPrint('  uploading doc: ${doc.fileName}');
+          final uploaded = await _chatService.uploadSingleDocument(doc);
+          if (uploaded != null) {
+            uploadedDocumentName = uploaded; // last uploaded name
+            _documentState = _documentState.markDocumentAsProcessed(
+              doc.fileName,
+            );
+          }
+        }
       }
       // Get AI response
       final aiResponse = await _chatService.sendMessage(
@@ -195,14 +236,14 @@ class ChatProvider extends ChangeNotifier {
         );
 
         // If the response indicates document was processed successfully, mark all as processed
-        if (_documentState.hasDocument &&
-            !_documentState.allProcessed &&
-            (aiResponse.contains('successfully processed') ||
-                aiResponse.contains('indexed') ||
-                aiResponse.contains('ready to answer questions'))) {
-          _documentState = _documentState.markAllAsProcessed();
+        // No longer infer processing from response; processing is tracked
+        // when uploads succeed above. Left here intentionally minimal.
+
+        // Hide input preview after successful message send (keep documents for top banner)
+        if (_documentState.hasDocument && _showInputPreview) {
+          hideInputPreview();
           debugPrint(
-            '[ChatProvider] sendMessage: marked all documents as processed by backend',
+            '[ChatProvider] sendMessage: hid input preview after successful send',
           );
         }
 

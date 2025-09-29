@@ -266,7 +266,6 @@ class _InputBarState extends State<InputBar> {
   Future<void> _pickDocument() async {
     try {
       debugPrint('[InputBar] _pickDocument: opening file picker...');
-      final messenger = ScaffoldMessenger.of(context);
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'md'],
@@ -303,20 +302,6 @@ class _InputBarState extends State<InputBar> {
 
           if (webFiles.isNotEmpty) {
             chatProvider.addMultipleDocumentsFromWeb(webFiles);
-
-            if (mounted) {
-              final fileNames = webFiles
-                  .map((f) => f['name'] as String)
-                  .join(', ');
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${webFiles.length} document(s) added: $fileNames',
-                  ),
-                  backgroundColor: AppColors.success,
-                ),
-              );
-            }
           }
         } else {
           // Mobile/desktop: use path
@@ -341,20 +326,6 @@ class _InputBarState extends State<InputBar> {
             debugPrint(
               '[InputBar] _pickDocument: chatProvider.addMultipleDocuments called',
             );
-
-            if (mounted) {
-              final fileNames = files
-                  .map((f) => f.path.split('/').last.split('\\').last)
-                  .join(', ');
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${files.length} document(s) added: $fileNames',
-                  ),
-                  backgroundColor: AppColors.success,
-                ),
-              );
-            }
           }
         }
       } else {

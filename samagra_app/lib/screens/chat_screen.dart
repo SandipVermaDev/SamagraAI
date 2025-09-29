@@ -4,7 +4,7 @@ import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/message_list.dart';
 import '../widgets/document_banner.dart';
-import '../widgets/input_bar.dart';
+import '../widgets/input_area_with_preview.dart';
 import '../theme/app_theme.dart';
 
 class ChatScreen extends StatelessWidget {
@@ -56,8 +56,8 @@ class ChatScreen extends StatelessWidget {
               // Messages list
               const Expanded(child: MessageList()),
 
-              // Input bar
-              const InputBar(),
+              // Input area with document preview
+              const InputAreaWithPreview(),
             ],
           ),
         );

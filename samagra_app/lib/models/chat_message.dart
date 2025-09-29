@@ -13,6 +13,8 @@ class ChatMessage {
   final String? documentPath;
   final String? documentName;
   final String? audioPath;
+  final List<String>?
+  attachedDocuments; // List of document names attached to this message
 
   ChatMessage({
     required this.id,
@@ -25,6 +27,7 @@ class ChatMessage {
     this.documentPath,
     this.documentName,
     this.audioPath,
+    this.attachedDocuments,
   });
 
   ChatMessage copyWith({
@@ -38,6 +41,7 @@ class ChatMessage {
     String? documentPath,
     String? documentName,
     String? audioPath,
+    List<String>? attachedDocuments,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -50,10 +54,13 @@ class ChatMessage {
       documentPath: documentPath ?? this.documentPath,
       documentName: documentName ?? this.documentName,
       audioPath: audioPath ?? this.audioPath,
+      attachedDocuments: attachedDocuments ?? this.attachedDocuments,
     );
   }
 
   bool get hasImage => imagePath != null && imagePath!.isNotEmpty;
   bool get hasDocument => documentPath != null && documentPath!.isNotEmpty;
   bool get hasAudio => audioPath != null && audioPath!.isNotEmpty;
+  bool get hasAttachedDocuments =>
+      attachedDocuments != null && attachedDocuments!.isNotEmpty;
 }

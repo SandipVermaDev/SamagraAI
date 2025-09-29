@@ -115,6 +115,29 @@ class DocumentState {
     return DocumentState(documents: updatedDocuments);
   }
 
+  // Mark only a specific document as processed
+  DocumentState markDocumentAsProcessed(String fileName) {
+    final updatedDocuments = documents.map((doc) {
+      if (doc.fileName == fileName) {
+        return doc.copyWith(isProcessedByBackend: true);
+      }
+      return doc;
+    }).toList();
+    return DocumentState(documents: updatedDocuments);
+  }
+
+  // Mark a set of documents as processed
+  DocumentState markDocumentsAsProcessed(Iterable<String> fileNames) {
+    final set = fileNames.toSet();
+    final updatedDocuments = documents.map((doc) {
+      if (set.contains(doc.fileName)) {
+        return doc.copyWith(isProcessedByBackend: true);
+      }
+      return doc;
+    }).toList();
+    return DocumentState(documents: updatedDocuments);
+  }
+
   DocumentState markAllAsProcessed() {
     final updatedDocuments = documents
         .map((doc) => doc.copyWith(isProcessedByBackend: true))

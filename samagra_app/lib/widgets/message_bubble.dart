@@ -58,6 +58,10 @@ class MessageBubble extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Attached documents preview
+                      if (message.hasAttachedDocuments)
+                        _buildAttachedDocuments(context, themeProvider),
+
                       // Image preview if present
                       if (message.hasImage)
                         _buildImagePreview(context, themeProvider),
@@ -170,6 +174,128 @@ class MessageBubble extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Widget _buildAttachedDocuments(
+    BuildContext context,
+    ThemeProvider themeProvider,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color:
+            (themeProvider.isDarkMode
+                    ? AppColors.darkDocumentBanner
+                    : AppColors.lightDocumentBanner)
+                .withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color:
+              (themeProvider.isDarkMode
+                      ? AppColors.darkDocumentBannerText
+                      : AppColors.lightDocumentBannerText)
+                  .withOpacity(0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.description,
+                size: 14,
+                color: themeProvider.isDarkMode
+                    ? AppColors.darkDocumentBannerText
+                    : AppColors.lightDocumentBannerText,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                message.attachedDocuments!.length == 1
+                    ? 'Document Attached'
+                    : '${message.attachedDocuments!.length} Documents Attached',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: themeProvider.isDarkMode
+                      ? AppColors.darkDocumentBannerText
+                      : AppColors.lightDocumentBannerText,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ...message.attachedDocuments!
+              .take(3)
+              .map(
+                (docName) => Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _getFileIcon(docName),
+                        size: 12,
+                        color:
+                            (themeProvider.isDarkMode
+                                    ? AppColors.darkDocumentBannerText
+                                    : AppColors.lightDocumentBannerText)
+                                .withOpacity(0.7),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          docName,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color:
+                                (themeProvider.isDarkMode
+                                        ? AppColors.darkDocumentBannerText
+                                        : AppColors.lightDocumentBannerText)
+                                    .withOpacity(0.8),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+          if (message.attachedDocuments!.length > 3)
+            Text(
+              '+${message.attachedDocuments!.length - 3} more',
+              style: TextStyle(
+                fontSize: 9,
+                fontStyle: FontStyle.italic,
+                color:
+                    (themeProvider.isDarkMode
+                            ? AppColors.darkDocumentBannerText
+                            : AppColors.lightDocumentBannerText)
+                        .withOpacity(0.6),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getFileIcon(String fileName) {
+    final ext = fileName.toLowerCase().split('.').last;
+    switch (ext) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.article;
+      case 'txt':
+        return Icons.text_snippet;
+      case 'md':
+        return Icons.notes;
+      default:
+        return Icons.description;
+    }
   }
 
   String _formatTimestamp(DateTime timestamp) {

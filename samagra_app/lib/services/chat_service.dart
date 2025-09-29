@@ -32,11 +32,10 @@ class ChatService {
       // Prepare the request body to match backend schema
       Map<String, dynamic> body = {'message': message, 'model': model.id};
 
+      // Keep request lean; backend will use session/cumulative store.
       if (documentState != null && documentState.hasDocument) {
-        body['document'] = {
-          'fileName': documentState.fileName,
-          'fileSize': documentState.fileSize,
-        };
+        body['documentsCount'] = documentState.totalDocuments;
+        body['documents'] = documentState.fileNames;
       }
 
       if (uploadedDocumentName != null) {
@@ -44,54 +43,7 @@ class ChatService {
       }
 
       // Send unprocessed documents to backend
-      if (uploadedDocumentName == null &&
-          documentState != null &&
-          documentState.hasDocument &&
-          !documentState.allProcessed) {
-        // Find first unprocessed document
-        final unprocessedDocs = documentState.documents
-            .where((doc) => !doc.isProcessedByBackend)
-            .toList();
-        final unprocessedDoc = unprocessedDocs.isNotEmpty
-            ? unprocessedDocs.first
-            : null;
-
-        if (unprocessedDoc != null) {
-          try {
-            if (unprocessedDoc.bytes != null) {
-              final encoded = base64Encode(unprocessedDoc.bytes!);
-              body['documentBase64'] = encoded;
-              body['documentFilename'] = unprocessedDoc.fileName;
-              debugPrint(
-                '[ChatService] sendMessage: included documentBase64 (web) size=${unprocessedDoc.bytes!.length}',
-              );
-            } else if (unprocessedDoc.file != null) {
-              try {
-                final bytes = await unprocessedDoc.file!.readAsBytes();
-                final encoded = base64Encode(bytes);
-                body['documentBase64'] = encoded;
-                body['documentFilename'] = unprocessedDoc.fileName;
-                debugPrint(
-                  '[ChatService] sendMessage: included documentBase64 (file) size=${bytes.length}',
-                );
-              } catch (e) {
-                debugPrint(
-                  '[ChatService] sendMessage: failed to read file bytes -> $e',
-                );
-              }
-            }
-          } catch (e) {
-            debugPrint(
-              '[ChatService] sendMessage: error encoding document -> $e',
-            );
-          }
-        }
-      } else if (documentState != null && documentState.hasDocument) {
-        // For subsequent questions, just indicate we have documents but don't send the bytes again
-        debugPrint(
-          '[ChatService] sendMessage: ${documentState.totalDocuments} document(s) available, using existing processed documents for Q&A',
-        );
-      }
+      // No longer bundle document bytes in chat payload; uploads handled via uploadSingleDocument.
 
       if (imagePath != null) {
         body['imagePath'] = imagePath;
@@ -109,8 +61,9 @@ class ChatService {
         body['imageName'] = imageName ?? 'capture.png';
       }
 
+      debugPrint('[ChatService] sendMessage: POST $uri');
       debugPrint(
-        '[ChatService] sendMessage: POST $uri body=${jsonEncode(body)}',
+        '  payload: messageLen=${message.length}, model=${model.id}, docs=${documentState?.totalDocuments ?? 0}, hasImage=${imagePath != null || imageBytes != null}',
       );
 
       final response = await http.post(
@@ -119,9 +72,7 @@ class ChatService {
         body: jsonEncode(body),
       );
 
-      debugPrint(
-        '[ChatService] sendMessage: status=${response.statusCode} body=${response.body}',
-      );
+      debugPrint('[ChatService] sendMessage: status=${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -194,6 +145,53 @@ class ChatService {
       return null;
     } catch (e) {
       debugPrint('[ChatService] uploadDocument: error -> $e');
+      return null;
+    }
+  }
+
+  /// Upload a single document (SingleDocument) and return the uploaded filename.
+  Future<String?> uploadSingleDocument(SingleDocument doc) async {
+    try {
+      final uri = Uri.parse('$baseUrl/documents/upload');
+      final request = http.MultipartRequest('POST', uri);
+
+      debugPrint('[ChatService] uploadSingleDocument: ${doc.fileName}');
+
+      if (doc.bytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            doc.bytes!,
+            filename: doc.fileName,
+          ),
+        );
+      } else if (doc.file != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('file', doc.file!.path),
+        );
+      } else {
+        debugPrint('[ChatService] uploadSingleDocument: no file/bytes');
+        return null;
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint(
+        '[ChatService] uploadSingleDocument: status=${response.statusCode}',
+      );
+
+      if (response.statusCode == 200) {
+        try {
+          final data = jsonDecode(response.body);
+          final uploadedName =
+              data['filename'] ?? data['fileName'] ?? data['name'];
+          if (uploadedName is String) return uploadedName;
+        } catch (_) {}
+        return doc.fileName;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[ChatService] uploadSingleDocument: error -> $e');
       return null;
     }
   }
