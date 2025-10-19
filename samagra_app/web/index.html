@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -27,12 +28,26 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
   <title>samagra_app</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Mitigate Chrome deprecation warning for Intl.v8BreakIterator by
+    // encouraging libraries to use Intl.Segmenter instead. We neutralize
+    // v8BreakIterator when Segmenter is available so detection code prefers it.
+    (function () {
+      try {
+        if (typeof Intl !== 'undefined' && typeof Intl.Segmenter !== 'undefined') {
+          Object.defineProperty(Intl, 'v8BreakIterator', { value: undefined, configurable: true });
+        }
+      } catch (_) { /* no-op */ }
+    })();
+  </script>
 </head>
+
 <body>
   <script src="flutter_bootstrap.js" async></script>
 </body>
+
 </html>

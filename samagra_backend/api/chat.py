@@ -1,13 +1,42 @@
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from schemas.chat import ChatRequest, ChatResponse
-from services.chat_service import generate_ai_response
+from services.chat_service import generate_ai_response, generate_ai_response_stream
 from services.rag_service import document_store
 
 # 1. Create a new router
 router = APIRouter(tags=["Chat"])
 
 
-# 2. Define the chat endpoint
+# 2. Define the streaming chat endpoint
+@router.post("/chat/stream")
+async def handle_chat_stream_request(request: ChatRequest):
+    """
+    This endpoint receives a user's message and returns the AI's response as a stream.
+    It now supports document processing via base64 content.
+    """
+    print(f"Received streaming chat request: message='{request.message}', has_document={request.documentBase64 is not None}")
+    if request.document:
+        print(f"Document info: fileName={request.document.fileName}, fileSize={request.document.fileSize}")
+    
+    # Return streaming response
+    return StreamingResponse(
+        generate_ai_response_stream(
+            message=request.message,
+            document_base64=request.documentBase64,
+            document_filename=request.document.fileName if request.document else None,
+            image_base64=request.imageBase64,
+            image_filename=request.imageName,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+# 3. Keep the old non-streaming endpoint for backward compatibility
 @router.post("/chat", response_model=ChatResponse)
 async def handle_chat_request(request: ChatRequest):
     """

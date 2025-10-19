@@ -25,9 +25,11 @@ class ChatProvider extends ChangeNotifier {
   DocumentState get documentState => _documentState;
   bool get isLoading => _isLoading;
   bool get hasActiveDocument => _documentState.hasDocument;
-  bool get hasPendingImage => _pendingImagePath != null || _pendingImageBytes != null;
+  bool get hasPendingImage =>
+      _pendingImagePath != null || _pendingImageBytes != null;
   bool get showInputPreview =>
-    _showInputPreview && (_pendingAttachmentNames.isNotEmpty || hasPendingImage);
+      _showInputPreview &&
+      (_pendingAttachmentNames.isNotEmpty || hasPendingImage);
   List<SingleDocument> get pendingDocuments => _documentState.documents
       .where((d) => _pendingAttachmentNames.contains(d.fileName))
       .toList();
@@ -248,8 +250,10 @@ class ChatProvider extends ChangeNotifier {
     debugPrint('[ChatProvider] sendMessage:');
     debugPrint('  message="${content.replaceAll('\n', ' ')}"');
     if (includeImage) {
-      if (_pendingImagePath != null) debugPrint('  imagePath=$_pendingImagePath');
-      if (_pendingImageBytes != null) debugPrint('  imageBytes=${_pendingImageBytes!.length}');
+      if (_pendingImagePath != null)
+        debugPrint('  imagePath=$_pendingImagePath');
+      if (_pendingImageBytes != null)
+        debugPrint('  imageBytes=${_pendingImageBytes!.length}');
     }
     if (_documentState.hasDocument) {
       final pending = _documentState.documents
@@ -279,8 +283,18 @@ class ChatProvider extends ChangeNotifier {
           }
         }
       }
-      // Get AI response
-      final aiResponse = await _chatService.sendMessage(
+
+      // Get AI response via streaming
+      final messageIndex = _messages.indexWhere((msg) => msg.id == aiMessageId);
+      if (messageIndex == -1) {
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      String accumulatedResponse = '';
+
+      await for (final chunk in _chatService.sendMessageStream(
         message: content,
         model: _selectedModel,
         documentState: _documentState,
@@ -288,32 +302,46 @@ class ChatProvider extends ChangeNotifier {
         imageBytes: includeImage ? _pendingImageBytes : null,
         imageName: includeImage ? _pendingImageName : null,
         uploadedDocumentName: uploadedDocumentName,
-      );
-
-      // Update the AI message with the response
-      final messageIndex = _messages.indexWhere((msg) => msg.id == aiMessageId);
-      if (messageIndex != -1) {
-        _messages[messageIndex] = _messages[messageIndex].copyWith(
-          content: aiResponse,
-          isLoading: false,
-        );
-
-        // If the response indicates document was processed successfully, mark all as processed
-        // No longer infer processing from response; processing is tracked
-        // when uploads succeed above. Left here intentionally minimal.
-
-        // Hide input preview after successful message send (keep documents for top banner)
-        if (_showInputPreview) {
-          hideInputPreview(); // hides preview banner
-          _pendingAttachmentNames.clear(); // clear staged docs
-          clearPendingImage(); // clear staged image
-          debugPrint(
-            '[ChatProvider] sendMessage: cleared staged docs/images and hid preview after successful send',
+      )) {
+        // Check for clear signal
+        if (chunk == '\u0000CLEAR\u0000') {
+          accumulatedResponse = '';
+          _messages[messageIndex] = _messages[messageIndex].copyWith(
+            content: '',
+            isLoading: true,
           );
+          notifyListeners();
+          continue;
         }
 
+        // Accumulate the response
+        accumulatedResponse += chunk;
+
+        // Update the AI message with streaming content
+        _messages[messageIndex] = _messages[messageIndex].copyWith(
+          content: accumulatedResponse,
+          isLoading: true, // Keep loading indicator during streaming
+        );
         notifyListeners();
       }
+
+      // Mark as complete
+      _messages[messageIndex] = _messages[messageIndex].copyWith(
+        content: accumulatedResponse,
+        isLoading: false,
+      );
+
+      // Hide input preview after successful message send
+      if (_showInputPreview) {
+        hideInputPreview();
+        _pendingAttachmentNames.clear();
+        clearPendingImage();
+        debugPrint(
+          '[ChatProvider] sendMessage: cleared staged docs/images and hid preview after successful send',
+        );
+      }
+
+      notifyListeners();
     } catch (e) {
       // Handle error
       debugPrint('[ChatProvider] sendMessage: error -> $e');

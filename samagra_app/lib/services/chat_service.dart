@@ -211,4 +211,94 @@ class ChatService {
       return [];
     }
   }
+
+  /// Send message with streaming response
+  Stream<String> sendMessageStream({
+    required String message,
+    required AIModel model,
+    DocumentState? documentState,
+    String? imagePath,
+    Uint8List? imageBytes,
+    String? imageName,
+    String? uploadedDocumentName,
+  }) async* {
+    try {
+      final uri = Uri.parse('$baseUrl/chat/stream');
+
+      // Prepare the request body
+      Map<String, dynamic> body = {'message': message, 'model': model.id};
+
+      if (documentState != null && documentState.hasDocument) {
+        body['documentsCount'] = documentState.totalDocuments;
+        body['documents'] = documentState.fileNames;
+      }
+
+      if (uploadedDocumentName != null) {
+        body['uploadedDocumentName'] = uploadedDocumentName;
+      }
+
+      if (imagePath != null) {
+        body['imagePath'] = imagePath;
+      }
+
+      if (imageBytes != null) {
+        body['imageBase64'] = base64Encode(imageBytes);
+        body['imageName'] = imageName ?? 'capture.png';
+      }
+
+      debugPrint('[ChatService] sendMessageStream: POST $uri');
+
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/json';
+      request.headers['Accept'] = 'text/event-stream';
+      request.body = jsonEncode(body);
+
+      final client = http.Client();
+      final streamedResponse = await client.send(request);
+
+      debugPrint(
+        '[ChatService] sendMessageStream: status=${streamedResponse.statusCode}',
+      );
+
+      if (streamedResponse.statusCode == 200) {
+        // Parse SSE stream
+        await for (var chunk in streamedResponse.stream.transform(
+          utf8.decoder,
+        )) {
+          // Split by lines for SSE format
+          final lines = chunk.split('\n');
+          for (var line in lines) {
+            if (line.startsWith('data: ')) {
+              final jsonStr = line.substring(6); // Remove 'data: ' prefix
+              try {
+                final data = jsonDecode(jsonStr);
+                if (data['content'] != null) {
+                  yield data['content'] as String;
+                }
+                if (data['done'] == true) {
+                  debugPrint(
+                    '[ChatService] sendMessageStream: stream complete',
+                  );
+                  break;
+                }
+                if (data['clear'] == true) {
+                  // Signal to clear previous content
+                  yield '\u0000CLEAR\u0000';
+                }
+              } catch (e) {
+                debugPrint(
+                  '[ChatService] sendMessageStream: parse error -> $e',
+                );
+              }
+            }
+          }
+        }
+      } else {
+        throw Exception('HTTP ${streamedResponse.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ChatService] sendMessageStream: error -> $e');
+      yield 'Error: $e';
+    }
+  }
 }
