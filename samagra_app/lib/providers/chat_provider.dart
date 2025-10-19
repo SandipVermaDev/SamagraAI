@@ -180,6 +180,26 @@ class ChatProvider extends ChangeNotifier {
     _pendingImageBytes = null;
     _pendingImageName = name;
     _showInputPreview = true;
+
+    // Add to document store for persistent display (check for duplicates first)
+    final existingImage = _documentState.documents.any(
+      (doc) => doc.fileName == name && doc.isImage,
+    );
+    if (!existingImage) {
+      final file = File(path);
+      final size = file.existsSync() ? file.lengthSync() : 0;
+      final imageDoc = SingleDocument(
+        file: file,
+        fileName: name,
+        filePath: path,
+        fileSize: size,
+        uploadTime: DateTime.now(),
+        isImage: true,
+        isProcessedByBackend: false,
+      );
+      _documentState = _documentState.addDocument(imageDoc);
+    }
+
     notifyListeners();
   }
 
@@ -188,6 +208,23 @@ class ChatProvider extends ChangeNotifier {
     _pendingImagePath = null;
     _pendingImageName = name;
     _showInputPreview = true;
+
+    // Add to document store for persistent display (check for duplicates first)
+    final existingImage = _documentState.documents.any(
+      (doc) => doc.fileName == name && doc.isImage,
+    );
+    if (!existingImage) {
+      final imageDoc = SingleDocument(
+        bytes: bytes,
+        fileName: name,
+        fileSize: bytes.length,
+        uploadTime: DateTime.now(),
+        isImage: true,
+        isProcessedByBackend: false,
+      );
+      _documentState = _documentState.addDocument(imageDoc);
+    }
+
     notifyListeners();
   }
 

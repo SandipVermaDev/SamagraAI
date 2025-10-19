@@ -48,16 +48,20 @@ class ChatScreen extends StatelessWidget {
               ),
             ],
           ),
-          body: Column(
+          body: Stack(
             children: [
-              // Document banner (shown when document is active)
-              if (chatProvider.hasActiveDocument) const DocumentBanner(),
+              Column(
+                children: [
+                  // Messages list
+                  const Expanded(child: MessageList()),
 
-              // Messages list
-              const Expanded(child: MessageList()),
+                  // Input area with document preview
+                  const InputAreaWithPreview(),
+                ],
+              ),
 
-              // Input area with document preview
-              const InputAreaWithPreview(),
+              // Floating document banner in top-right corner
+              const DocumentBanner(),
             ],
           ),
         );

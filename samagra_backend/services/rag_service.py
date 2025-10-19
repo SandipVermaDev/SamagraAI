@@ -242,7 +242,15 @@ def process_uploaded_image(image_content: bytes, filename: Optional[str] = None)
         
     # Create LangChain Document and add to cumulative vector store
     try:
-        doc = Document(page_content=extracted_text, metadata={"source": filename or "image"})
+        # Add metadata to help the AI understand this is from an image
+        doc = Document(
+            page_content=f"[Text extracted from image '{filename or 'uploaded image'}']\n\n{extracted_text}",
+            metadata={
+                "source": filename or "image",
+                "type": "image_ocr",
+                "original_filename": filename
+            }
+        )
         
         # Split text into chunks
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)

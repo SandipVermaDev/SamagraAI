@@ -9,6 +9,7 @@ class SingleDocument {
   final int fileSize;
   final DateTime uploadTime;
   final bool isProcessedByBackend;
+  final bool isImage; // Flag to distinguish images from documents
 
   const SingleDocument({
     this.file,
@@ -18,6 +19,7 @@ class SingleDocument {
     required this.fileSize,
     required this.uploadTime,
     this.isProcessedByBackend = false,
+    this.isImage = false,
   });
 
   bool get hasDocument => file != null || bytes != null;
@@ -30,6 +32,7 @@ class SingleDocument {
     int? fileSize,
     DateTime? uploadTime,
     bool? isProcessedByBackend,
+    bool? isImage,
   }) {
     return SingleDocument(
       file: file ?? this.file,
@@ -39,6 +42,7 @@ class SingleDocument {
       fileSize: fileSize ?? this.fileSize,
       uploadTime: uploadTime ?? this.uploadTime,
       isProcessedByBackend: isProcessedByBackend ?? this.isProcessedByBackend,
+      isImage: isImage ?? this.isImage,
     );
   }
 
@@ -67,6 +71,18 @@ class DocumentState {
   int get totalSize => documents.fold(0, (sum, doc) => sum + doc.fileSize);
 
   List<String> get fileNames => documents.map((doc) => doc.fileName).toList();
+
+  // Get only documents (not images)
+  List<SingleDocument> get documentsOnly =>
+      documents.where((doc) => !doc.isImage).toList();
+
+  // Get only images
+  List<SingleDocument> get imagesOnly =>
+      documents.where((doc) => doc.isImage).toList();
+
+  // Count documents and images separately
+  int get documentCount => documentsOnly.length;
+  int get imageCount => imagesOnly.length;
 
   bool get allProcessed =>
       documents.isNotEmpty &&

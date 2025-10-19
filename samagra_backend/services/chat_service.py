@@ -98,13 +98,21 @@ def generate_ai_response(
 
         # 2. Create a prompt template for RAG
         template = """
-        You are a helpful assistant. Answer the question based only on the following context:
+        You are a helpful assistant. Answer the question based on the following context, which may include:
+        - Text extracted from documents (PDFs, text files)
+        - Text extracted from images via OCR (optical character recognition)
+        
+        When asked about "this image" or "this document", the context below represents the content extracted from it.
+        If the context contains text that was extracted from an image, treat that as describing what was visible in the image.
+        
+        Context:
         {context}
 
         Question: {question}
         
-        If the context contains relevant information to answer the question, provide a detailed answer.
-        If you cannot find the answer in the context, respond with exactly: "NO_ANSWER_IN_DOCUMENT"
+        Provide a detailed answer based on the context. If the question is about an image and the context contains extracted text,
+        describe what text/content was found in the image. Only respond with "NO_ANSWER_IN_DOCUMENT" if the context is completely 
+        unrelated or empty.
         """
         prompt = PromptTemplate.from_template(template)
 
@@ -255,13 +263,21 @@ async def generate_ai_response_stream(
 
             # Create a prompt template for RAG
             template = """
-            You are a helpful assistant. Answer the question based only on the following context:
+            You are a helpful assistant. Answer the question based on the following context, which may include:
+            - Text extracted from documents (PDFs, text files)
+            - Text extracted from images via OCR (optical character recognition)
+            
+            When asked about "this image" or "this document", the context below represents the content extracted from it.
+            If the context contains text that was extracted from an image, treat that as describing what was visible in the image.
+            
+            Context:
             {context}
 
             Question: {question}
             
-            If the context contains relevant information to answer the question, provide a detailed answer.
-            If you cannot find the answer in the context, respond with exactly: "NO_ANSWER_IN_DOCUMENT"
+            Provide a detailed answer based on the context. If the question is about an image and the context contains extracted text,
+            describe what text/content was found in the image. Only respond with "NO_ANSWER_IN_DOCUMENT" if the context is completely 
+            unrelated or empty.
             """
             prompt = PromptTemplate.from_template(template)
 
