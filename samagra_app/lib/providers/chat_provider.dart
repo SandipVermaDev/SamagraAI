@@ -293,6 +293,8 @@ class ChatProvider extends ChangeNotifier {
       }
 
       String accumulatedResponse = '';
+      int chunkCount = 0;
+      const batchSize = 3; // Update UI every 3 chunks for smoother performance
 
       await for (final chunk in _chatService.sendMessageStream(
         message: content,
@@ -316,16 +318,20 @@ class ChatProvider extends ChangeNotifier {
 
         // Accumulate the response
         accumulatedResponse += chunk;
+        chunkCount++;
 
-        // Update the AI message with streaming content
-        _messages[messageIndex] = _messages[messageIndex].copyWith(
-          content: accumulatedResponse,
-          isLoading: true, // Keep loading indicator during streaming
-        );
-        notifyListeners();
+        // Update UI in batches for smoother streaming
+        // But always update for first few chunks to show immediate response
+        if (chunkCount <= 5 || chunkCount % batchSize == 0) {
+          _messages[messageIndex] = _messages[messageIndex].copyWith(
+            content: accumulatedResponse,
+            isLoading: true,
+          );
+          notifyListeners();
+        }
       }
 
-      // Mark as complete
+      // Final update with complete content
       _messages[messageIndex] = _messages[messageIndex].copyWith(
         content: accumulatedResponse,
         isLoading: false,

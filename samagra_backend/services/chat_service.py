@@ -242,7 +242,11 @@ async def generate_ai_response_stream(
             print("No document or image loaded. Using general conversation mode (streaming).")
             async for chunk in llm.astream(message):
                 if chunk.content:
-                    yield f"data: {json.dumps({'content': chunk.content})}\n\n"
+                    # Send each token immediately
+                    data = f"data: {json.dumps({'content': chunk.content})}\n\n"
+                    yield data
+                    # Force flush by yielding empty byte to trigger send
+                    await __import__('asyncio').sleep(0)
             yield f"data: {json.dumps({'done': True})}\n\n"
         else:
             # If a document or image is uploaded, use the RAG chain
@@ -277,7 +281,9 @@ async def generate_ai_response_stream(
                 print("No relevant documents found, falling back to general chat (streaming)")
                 async for chunk in llm.astream(message):
                     if chunk.content:
-                        yield f"data: {json.dumps({'content': chunk.content})}\n\n"
+                        data = f"data: {json.dumps({'content': chunk.content})}\n\n"
+                        yield data
+                        await __import__('asyncio').sleep(0)
                 yield f"data: {json.dumps({'done': True})}\n\n"
                 return
             
@@ -287,7 +293,10 @@ async def generate_ai_response_stream(
             async for chunk in rag_chain.astream(message):
                 if chunk:
                     full_response += chunk
-                    yield f"data: {json.dumps({'content': chunk})}\n\n"
+                    data = f"data: {json.dumps({'content': chunk})}\n\n"
+                    yield data
+                    # Small delay to allow flushing
+                    await __import__('asyncio').sleep(0)
             
             # Check if the model couldn't find the answer in the document
             if "NO_ANSWER_IN_DOCUMENT" in full_response:
@@ -297,7 +306,9 @@ async def generate_ai_response_stream(
                 # Stream general chat response
                 async for chunk in llm.astream(message):
                     if chunk.content:
-                        yield f"data: {json.dumps({'content': chunk.content})}\n\n"
+                        data = f"data: {json.dumps({'content': chunk.content})}\n\n"
+                        yield data
+                        await __import__('asyncio').sleep(0)
             
             yield f"data: {json.dumps({'done': True})}\n\n"
             

@@ -261,34 +261,73 @@ class ChatService {
       );
 
       if (streamedResponse.statusCode == 200) {
-        // Parse SSE stream
-        await for (var chunk in streamedResponse.stream.transform(
-          utf8.decoder,
-        )) {
-          // Split by lines for SSE format
-          final lines = chunk.split('\n');
-          for (var line in lines) {
-            if (line.startsWith('data: ')) {
-              final jsonStr = line.substring(6); // Remove 'data: ' prefix
-              try {
-                final data = jsonDecode(jsonStr);
-                if (data['content'] != null) {
-                  yield data['content'] as String;
-                }
-                if (data['done'] == true) {
+        // Parse SSE stream with better chunking
+        StringBuffer buffer = StringBuffer();
+
+        await for (var chunk in streamedResponse.stream) {
+          // Decode bytes to string incrementally
+          final text = utf8.decode(chunk, allowMalformed: true);
+          buffer.write(text);
+
+          // Process complete lines immediately
+          final bufferContent = buffer.toString();
+          final lines = bufferContent.split('\n');
+
+          // Keep the last incomplete line in buffer
+          if (!bufferContent.endsWith('\n')) {
+            buffer.clear();
+            buffer.write(lines.last);
+            // Process all complete lines
+            for (var i = 0; i < lines.length - 1; i++) {
+              final line = lines[i];
+              if (line.startsWith('data: ')) {
+                final jsonStr = line.substring(6);
+                try {
+                  final data = jsonDecode(jsonStr);
+                  if (data['content'] != null) {
+                    yield data['content'] as String;
+                  }
+                  if (data['done'] == true) {
+                    debugPrint(
+                      '[ChatService] sendMessageStream: stream complete',
+                    );
+                    return;
+                  }
+                  if (data['clear'] == true) {
+                    yield '\u0000CLEAR\u0000';
+                  }
+                } catch (e) {
                   debugPrint(
-                    '[ChatService] sendMessageStream: stream complete',
+                    '[ChatService] sendMessageStream: parse error -> $e',
                   );
-                  break;
                 }
-                if (data['clear'] == true) {
-                  // Signal to clear previous content
-                  yield '\u0000CLEAR\u0000';
+              }
+            }
+          } else {
+            // All lines are complete
+            buffer.clear();
+            for (var line in lines) {
+              if (line.startsWith('data: ')) {
+                final jsonStr = line.substring(6);
+                try {
+                  final data = jsonDecode(jsonStr);
+                  if (data['content'] != null) {
+                    yield data['content'] as String;
+                  }
+                  if (data['done'] == true) {
+                    debugPrint(
+                      '[ChatService] sendMessageStream: stream complete',
+                    );
+                    return;
+                  }
+                  if (data['clear'] == true) {
+                    yield '\u0000CLEAR\u0000';
+                  }
+                } catch (e) {
+                  debugPrint(
+                    '[ChatService] sendMessageStream: parse error -> $e',
+                  );
                 }
-              } catch (e) {
-                debugPrint(
-                  '[ChatService] sendMessageStream: parse error -> $e',
-                );
               }
             }
           }
