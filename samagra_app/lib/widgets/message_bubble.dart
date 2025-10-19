@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../models/chat_message.dart';
 import '../providers/theme_provider.dart';
@@ -142,15 +144,138 @@ class MessageBubble extends StatelessWidget {
     bool isUser,
     ThemeProvider themeProvider,
   ) {
+    // For AI messages, render markdown
+    if (!isUser) {
+      return MarkdownBody(
+        data: message.content,
+        selectable: true,
+        styleSheet: MarkdownStyleSheet(
+          p: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontSize: 14,
+            height: 1.5,
+          ),
+          h1: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            height: 1.5,
+          ),
+          h2: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            height: 1.5,
+          ),
+          h3: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            height: 1.5,
+          ),
+          h4: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            height: 1.5,
+          ),
+          h5: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            height: 1.5,
+          ),
+          h6: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            height: 1.5,
+          ),
+          em: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontStyle: FontStyle.italic,
+          ),
+          strong: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontWeight: FontWeight.bold,
+          ),
+          code: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            backgroundColor: themeProvider.isDarkMode
+                ? Colors.grey[800]
+                : Colors.grey[200],
+            fontFamily: 'monospace',
+            fontSize: 13,
+          ),
+          codeblockDecoration: BoxDecoration(
+            color: themeProvider.isDarkMode
+                ? Colors.grey[900]
+                : Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: themeProvider.isDarkMode
+                  ? Colors.grey[700]!
+                  : Colors.grey[300]!,
+            ),
+          ),
+          codeblockPadding: const EdgeInsets.all(12),
+          blockquote: TextStyle(
+            color: themeProvider.getAiMessageText(context).withOpacity(0.8),
+            fontStyle: FontStyle.italic,
+          ),
+          blockquoteDecoration: BoxDecoration(
+            color: themeProvider.isDarkMode
+                ? Colors.grey[800]!.withOpacity(0.3)
+                : Colors.grey[200]!.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(4),
+            border: Border(
+              left: BorderSide(color: AppColors.mediumPurple, width: 4),
+            ),
+          ),
+          blockquotePadding: const EdgeInsets.all(10),
+          listBullet: TextStyle(
+            color: themeProvider.getAiMessageText(context),
+            fontSize: 14,
+          ),
+          listIndent: 24,
+          a: TextStyle(
+            color: AppColors.mediumPurple,
+            decoration: TextDecoration.underline,
+          ),
+          horizontalRuleDecoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: themeProvider.isDarkMode
+                    ? Colors.grey[700]!
+                    : Colors.grey[300]!,
+                width: 1,
+              ),
+            ),
+          ),
+        ),
+        onTapLink: (text, href, title) {
+          if (href != null) {
+            _launchURL(href);
+          }
+        },
+      );
+    }
+
+    // For user messages, use regular text
     return SelectableText(
       message.content,
       style: TextStyle(
-        color: isUser
-            ? themeProvider.getUserMessageText(context)
-            : themeProvider.getAiMessageText(context),
+        color: themeProvider.getUserMessageText(context),
         fontSize: 14,
       ),
     );
+  }
+
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Widget _buildLoadingIndicator(
