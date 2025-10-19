@@ -18,8 +18,12 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             children: [
               _buildThemeSection(context, themeProvider),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               _buildModelSection(context, chatProvider, themeProvider),
+              const SizedBox(height: 16),
+              _buildConnectionSection(context, chatProvider, themeProvider),
+              const SizedBox(height: 16),
+              _buildChatSection(context, chatProvider, themeProvider),
             ],
           );
         },
@@ -159,6 +163,192 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildConnectionSection(
+    BuildContext context,
+    ChatProvider chatProvider,
+    ThemeProvider themeProvider,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Connection',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: themeProvider.getTextPrimary(context),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Test your backend connection to ensure everything is working properly.',
+              style: TextStyle(
+                fontSize: 14,
+                color: themeProvider.getTextSecondary(context),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _testConnection(context, chatProvider),
+                icon: const Icon(Icons.wifi),
+                label: const Text('Test Backend Connection'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.mediumPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatSection(
+    BuildContext context,
+    ChatProvider chatProvider,
+    ThemeProvider themeProvider,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Chat History',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: themeProvider.getTextPrimary(context),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Delete all messages from your current chat session. This action cannot be undone.',
+              style: TextStyle(
+                fontSize: 14,
+                color: themeProvider.getTextSecondary(context),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showClearChatDialog(context, chatProvider),
+                icon: const Icon(Icons.delete_sweep),
+                label: const Text('Clear Chat History'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _testConnection(BuildContext context, ChatProvider chatProvider) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        title: Text('Testing Connection'),
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Connecting to backend...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final isConnected = await chatProvider.testBackendConnection();
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              isConnected ? 'Connection Successful' : 'Connection Failed',
+            ),
+            content: Text(
+              isConnected
+                  ? 'Backend is reachable and working properly.'
+                  : 'Cannot connect to backend. Make sure the server is running on localhost:8000.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Connection Error'),
+            content: Text('Error testing connection: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  void _showClearChatDialog(BuildContext context, ChatProvider chatProvider) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Chat'),
+          content: const Text('Are you sure you want to clear all messages?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                chatProvider.clearChat();
+                Navigator.of(context).pop();
+              },
+              child: Text('Clear', style: TextStyle(color: AppColors.error)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

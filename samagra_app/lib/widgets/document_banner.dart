@@ -34,17 +34,23 @@ class _DocumentBannerState extends State<DocumentBanner> {
           return const SizedBox.shrink();
         }
 
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        // Responsive sizing based on screen width
+        final collapsedWidth = screenWidth < 400 ? 100.0 : 130.0;
+        final expandedWidth = screenWidth < 400 ? 240.0 : 280.0;
+
         return Positioned(
-          top: 16,
-          right: 16,
+          top: 8,
+          right: 8,
           child: Material(
             elevation: 4,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             color: themeProvider.isDarkMode
                 ? AppColors.darkDocumentBanner
                 : AppColors.lightDocumentBanner,
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               onTap: () {
                 setState(() {
                   _isExpanded = !_isExpanded;
@@ -53,12 +59,12 @@ class _DocumentBannerState extends State<DocumentBanner> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 constraints: BoxConstraints(
-                  maxWidth: _isExpanded ? 320 : 200,
-                  maxHeight: _isExpanded ? 400 : 48,
+                  maxWidth: _isExpanded ? expandedWidth : collapsedWidth,
+                  maxHeight: _isExpanded ? 300 : 40,
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                padding: EdgeInsets.symmetric(
+                  horizontal: _isExpanded ? 10 : 8,
+                  vertical: _isExpanded ? 8 : 6,
                 ),
                 child: _isExpanded
                     ? _buildExpandedView(
@@ -92,12 +98,12 @@ class _DocumentBannerState extends State<DocumentBanner> {
       children: [
         // Icon
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: themeProvider.isDarkMode
                 ? AppColors.darkDocumentBannerText.withOpacity(0.15)
                 : AppColors.lightDocumentBannerText.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(5),
           ),
           child: Icon(
             hasDocuments && hasImages
@@ -108,26 +114,26 @@ class _DocumentBannerState extends State<DocumentBanner> {
             color: themeProvider.isDarkMode
                 ? AppColors.darkDocumentBannerText
                 : AppColors.lightDocumentBannerText,
-            size: 16,
+            size: 14,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
 
         // Text
         Flexible(
           child: Text(
-            totalItems == 1 ? '1 Active' : '$totalItems Active',
+            totalItems == 1 ? '1' : '$totalItems',
             style: TextStyle(
               color: themeProvider.isDarkMode
                   ? AppColors.darkDocumentBannerText
                   : AppColors.lightDocumentBannerText,
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 2),
 
         // Dropdown arrow
         Icon(
@@ -135,7 +141,7 @@ class _DocumentBannerState extends State<DocumentBanner> {
           color: themeProvider.isDarkMode
               ? AppColors.darkDocumentBannerText
               : AppColors.lightDocumentBannerText,
-          size: 20,
+          size: 18,
         ),
       ],
     );
@@ -162,40 +168,41 @@ class _DocumentBannerState extends State<DocumentBanner> {
               color: themeProvider.isDarkMode
                   ? AppColors.darkDocumentBannerText
                   : AppColors.lightDocumentBannerText,
-              size: 18,
+              size: 16,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'Active Resources',
+                'Resources',
                 style: TextStyle(
                   color: themeProvider.isDarkMode
                       ? AppColors.darkDocumentBannerText
                       : AppColors.lightDocumentBannerText,
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            IconButton(
-              onPressed: () {
+            InkWell(
+              onTap: () {
                 setState(() {
                   _isExpanded = false;
                 });
               },
-              icon: Icon(
-                Icons.close,
-                color: themeProvider.isDarkMode
-                    ? AppColors.darkDocumentBannerText
-                    : AppColors.lightDocumentBannerText,
-                size: 18,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.close,
+                  color: themeProvider.isDarkMode
+                      ? AppColors.darkDocumentBannerText
+                      : AppColors.lightDocumentBannerText,
+                  size: 16,
+                ),
               ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Divider(
           color:
               (themeProvider.isDarkMode
@@ -204,59 +211,63 @@ class _DocumentBannerState extends State<DocumentBanner> {
                   .withOpacity(0.3),
           height: 1,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
 
         // List
-        Expanded(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              // Documents
-              if (hasDocuments)
-                ...documents.map((doc) {
-                  return _buildListItem(
-                    themeProvider: themeProvider,
-                    icon: Icons.description,
-                    title: doc.fileName,
-                    subtitle: doc.sizeText,
-                    onDelete: () {
-                      chatProvider.removeDocument(doc.fileName);
-                      if (chatProvider.documentState.totalDocuments == 0) {
-                        setState(() {
-                          _isExpanded = false;
-                        });
-                      }
-                    },
-                  );
-                }),
+        Flexible(
+          fit: FlexFit.loose,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Documents
+                if (hasDocuments)
+                  ...documents.map((doc) {
+                    return _buildListItem(
+                      themeProvider: themeProvider,
+                      icon: Icons.description,
+                      title: doc.fileName,
+                      subtitle: doc.sizeText,
+                      onDelete: () {
+                        chatProvider.removeDocument(doc.fileName);
+                        if (chatProvider.documentState.totalDocuments == 0) {
+                          setState(() {
+                            _isExpanded = false;
+                          });
+                        }
+                      },
+                    );
+                  }),
 
-              // Images
-              if (hasImages)
-                ...images.map((image) {
-                  return _buildListItem(
-                    themeProvider: themeProvider,
-                    icon: Icons.image,
-                    title: image.fileName,
-                    subtitle: image.sizeText,
-                    isImage: true,
-                    imageBytes: image.bytes,
-                    imagePath: image.filePath,
-                    onDelete: () {
-                      chatProvider.removeDocument(image.fileName);
-                      if (chatProvider.documentState.totalDocuments == 0) {
-                        setState(() {
-                          _isExpanded = false;
-                        });
-                      }
-                    },
-                  );
-                }),
-            ],
+                // Images
+                if (hasImages)
+                  ...images.map((image) {
+                    return _buildListItem(
+                      themeProvider: themeProvider,
+                      icon: Icons.image,
+                      title: image.fileName,
+                      subtitle: image.sizeText,
+                      isImage: true,
+                      imageBytes: image.bytes,
+                      imagePath: image.filePath,
+                      onDelete: () {
+                        chatProvider.removeDocument(image.fileName);
+                        if (chatProvider.documentState.totalDocuments == 0) {
+                          setState(() {
+                            _isExpanded = false;
+                          });
+                        }
+                      },
+                    );
+                  }),
+              ],
+            ),
           ),
         ),
 
         // Actions
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Divider(
           color:
               (themeProvider.isDarkMode
@@ -265,7 +276,7 @@ class _DocumentBannerState extends State<DocumentBanner> {
                   .withOpacity(0.3),
           height: 1,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -277,13 +288,13 @@ class _DocumentBannerState extends State<DocumentBanner> {
                   _isExpanded = false;
                 });
               },
-              icon: Icon(Icons.delete_sweep, size: 16, color: AppColors.error),
+              icon: Icon(Icons.delete_sweep, size: 14, color: AppColors.error),
               label: Text(
-                'Clear All',
-                style: TextStyle(color: AppColors.error, fontSize: 12),
+                'Clear',
+                style: TextStyle(color: AppColors.error, fontSize: 10),
               ),
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 minimumSize: const Size(0, 0),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
