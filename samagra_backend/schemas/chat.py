@@ -28,3 +28,17 @@ class ChatResponse(BaseModel):
     Defines the shape of a response from the /chat endpoint.
     """
     reply: str
+
+class ModelSelectionRequest(BaseModel):
+    """
+    Defines the shape of a request to set the AI model.
+    """
+    model_id: str
+
+class ModelSelectionResponse(BaseModel):
+    """
+    Defines the shape of a response from the model selection endpoint.
+    """
+    success: bool
+    message: str
+    model_id: str

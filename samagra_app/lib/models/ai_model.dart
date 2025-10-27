@@ -13,24 +13,29 @@ class AIModel {
 
   static const List<AIModel> availableModels = [
     AIModel(
-      id: 'gpt-3.5-turbo',
-      name: 'GPT-3.5 Turbo',
+      id: 'gemini-2.5-flash-lite',
+      name: 'Gemini 2.5 Flash-Lite',
+      description: 'Fastest and most cost-effective model',
+    ),
+    AIModel(
+      id: 'gemini-2.5-flash',
+      name: 'Gemini 2.5 Flash',
       description: 'Fast and efficient for most conversations',
     ),
     AIModel(
-      id: 'gpt-4',
-      name: 'GPT-4',
+      id: 'gemini-2.5-pro',
+      name: 'Gemini 2.5 Pro',
       description: 'Most capable model for complex tasks',
     ),
     AIModel(
-      id: 'claude-3-sonnet',
-      name: 'Claude 3 Sonnet',
-      description: 'Balanced performance and speed',
+      id: 'gemini-2.0-flash-lite',
+      name: 'Gemini 2.0 Flash-Lite',
+      description: 'Lightweight and quick responses',
     ),
     AIModel(
-      id: 'claude-3-opus',
-      name: 'Claude 3 Opus',
-      description: 'Most powerful model for complex reasoning',
+      id: 'gemini-2.0-flash',
+      name: 'Gemini 2.0 Flash',
+      description: 'Balanced performance and speed',
     ),
   ];
 

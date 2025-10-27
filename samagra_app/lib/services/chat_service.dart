@@ -340,4 +340,47 @@ class ChatService {
       yield 'Error: $e';
     }
   }
+
+  /// Set the AI model on the backend
+  Future<bool> setModel(String modelId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/model/select');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'model_id': modelId}),
+      );
+
+      debugPrint('[ChatService] setModel: status=${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[ChatService] setModel: error -> $e');
+      return false;
+    }
+  }
+
+  /// Get available models from backend
+  Future<Map<String, dynamic>?> getAvailableModels() async {
+    try {
+      final uri = Uri.parse('$baseUrl/model/available');
+      final response = await http.get(uri);
+
+      debugPrint(
+        '[ChatService] getAvailableModels: status=${response.statusCode}',
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[ChatService] getAvailableModels: error -> $e');
+      return null;
+    }
+  }
 }

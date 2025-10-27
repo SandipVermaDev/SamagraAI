@@ -4,17 +4,14 @@ from typing import Optional, AsyncGenerator
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_google_genai import ChatGoogleGenerativeAI
 from core.config import settings
 from services.rag_service import document_store, process_uploaded_document, process_uploaded_image
+from services.model_manager import model_manager
 
-# 1. Initialize the Language Model
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash-lite",
-    google_api_key=settings.GOOGLE_API_KEY,
-    convert_system_message_to_human=True,
-    streaming=True  # Enable streaming
-)
+# Get the language model from model manager
+def get_llm():
+    """Get the current language model instance"""
+    return model_manager.get_llm()
 
 def generate_ai_response(
     message: str,
@@ -86,7 +83,7 @@ def generate_ai_response(
         # If no document or image is uploaded, behave as a general chatbot
         print("No document or image loaded. Using general conversation mode.")
         try:
-            ai_response = llm.invoke(message)
+            ai_response = get_llm().invoke(message)
             return ai_response.content
         except Exception as e:
             print(f"Error calling AI model: {e}")
@@ -120,7 +117,7 @@ def generate_ai_response(
         rag_chain = (
             {"context": current_retriever, "question": RunnablePassthrough()}
             | prompt
-            | llm
+            | get_llm()
             | StrOutputParser()
         )
 
@@ -138,7 +135,7 @@ def generate_ai_response(
                 print("No relevant documents found, falling back to general chat")
                 # Fall back to general chat mode
                 try:
-                    ai_response = llm.invoke(message)
+                    ai_response = get_llm().invoke(message)
                     return ai_response.content
                 except Exception as e:
                     print(f"Error in fallback general chat: {e}")
@@ -153,7 +150,7 @@ def generate_ai_response(
                 print("No answer found in document, falling back to general chat")
                 # Fall back to general chat mode
                 try:
-                    ai_response = llm.invoke(message)
+                    ai_response = get_llm().invoke(message)
                     return ai_response.content
                 except Exception as e:
                     print(f"Error in fallback general chat: {e}")
@@ -172,7 +169,7 @@ def generate_ai_response(
             # Fall back to general chat mode in case of error
             print("RAG chain failed, falling back to general chat")
             try:
-                ai_response = llm.invoke(message)
+                ai_response = get_llm().invoke(message)
                 return ai_response.content
             except Exception as fallback_error:
                 print(f"Fallback general chat also failed: {fallback_error}")
@@ -248,7 +245,7 @@ async def generate_ai_response_stream(
         if current_retriever is None:
             # If no document or image is uploaded, behave as a general chatbot
             print("No document or image loaded. Using general conversation mode (streaming).")
-            async for chunk in llm.astream(message):
+            async for chunk in get_llm().astream(message):
                 if chunk.content:
                     # Send each token immediately
                     data = f"data: {json.dumps({'content': chunk.content})}\n\n"
@@ -285,7 +282,7 @@ async def generate_ai_response_stream(
             rag_chain = (
                 {"context": current_retriever, "question": RunnablePassthrough()}
                 | prompt
-                | llm
+                | get_llm()
                 | StrOutputParser()
             )
 
@@ -295,7 +292,7 @@ async def generate_ai_response_stream(
             
             if not relevant_docs or all(len(doc.page_content.strip()) == 0 for doc in relevant_docs):
                 print("No relevant documents found, falling back to general chat (streaming)")
-                async for chunk in llm.astream(message):
+                async for chunk in get_llm().astream(message):
                     if chunk.content:
                         data = f"data: {json.dumps({'content': chunk.content})}\n\n"
                         yield data
@@ -320,7 +317,7 @@ async def generate_ai_response_stream(
                 # Clear the NO_ANSWER response
                 yield f"data: {json.dumps({'content': '', 'clear': True})}\n\n"
                 # Stream general chat response
-                async for chunk in llm.astream(message):
+                async for chunk in get_llm().astream(message):
                     if chunk.content:
                         data = f"data: {json.dumps({'content': chunk.content})}\n\n"
                         yield data

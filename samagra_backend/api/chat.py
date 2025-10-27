@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from schemas.chat import ChatRequest, ChatResponse
+from schemas.chat import ChatRequest, ChatResponse, ModelSelectionRequest, ModelSelectionResponse
 from services.chat_service import generate_ai_response, generate_ai_response_stream
 from services.rag_service import document_store
+from services.model_manager import model_manager
 
 # 1. Create a new router
 router = APIRouter(tags=["Chat"])
@@ -13,11 +14,15 @@ router = APIRouter(tags=["Chat"])
 async def handle_chat_stream_request(request: ChatRequest):
     """
     This endpoint receives a user's message and returns the AI's response as a stream.
-    It now supports document processing via base64 content.
+    It now supports document processing via base64 content and optional model selection per request.
     """
-    print(f"Received streaming chat request: message='{request.message}', has_document={request.documentBase64 is not None}")
+    print(f"Received streaming chat request: message='{request.message}', has_document={request.documentBase64 is not None}, model={request.model}")
     if request.document:
         print(f"Document info: fileName={request.document.fileName}, fileSize={request.document.fileSize}")
+    
+    # Set model if specified in request
+    if request.model:
+        model_manager.set_model(request.model)
     
     # Return streaming response
     return StreamingResponse(
@@ -41,11 +46,15 @@ async def handle_chat_stream_request(request: ChatRequest):
 async def handle_chat_request(request: ChatRequest):
     """
     This endpoint receives a user's message and returns the AI's response.
-    It now supports document processing via base64 content.
+    It now supports document processing via base64 content and optional model selection per request.
     """
-    print(f"Received chat request: message='{request.message}', has_document={request.documentBase64 is not None}")
+    print(f"Received chat request: message='{request.message}', has_document={request.documentBase64 is not None}, model={request.model}")
     if request.document:
         print(f"Document info: fileName={request.document.fileName}, fileSize={request.document.fileSize}")
+    
+    # Set model if specified in request
+    if request.model:
+        model_manager.set_model(request.model)
     
     # 3. Call the AI service to get a reply, passing document data if available
     ai_reply = generate_ai_response(
@@ -80,4 +89,48 @@ async def clear_documents():
     Clear all processed documents from memory to allow general chat mode.
     """
     document_store.clear()
+    return {"message": "All documents cleared successfully"}
+
+@router.post("/model/select", response_model=ModelSelectionResponse)
+async def select_model(request: ModelSelectionRequest):
+    """
+    Set the AI model to use for chat responses.
+    """
+    try:
+        success = model_manager.set_model(request.model_id)
+        if success:
+            return ModelSelectionResponse(
+                success=True,
+                message=f"Model successfully changed to {request.model_id}",
+                model_id=request.model_id
+            )
+        else:
+            return ModelSelectionResponse(
+                success=False,
+                message=f"Invalid model ID: {request.model_id}",
+                model_id=request.model_id
+            )
+    except Exception as e:
+        return ModelSelectionResponse(
+            success=False,
+            message=f"Error changing model: {str(e)}",
+            model_id=request.model_id
+        )
+
+@router.get("/model/available")
+async def get_available_models():
+    """
+    Get the list of available AI models.
+    """
+    return {
+        "models": [
+            {
+                "id": model_id,
+                "name": info["name"],
+                "description": info["description"]
+            }
+            for model_id, info in model_manager.AVAILABLE_MODELS.items()
+        ],
+        "current_model": model_manager.current_model_id
+    }
     return {"message": "Documents cleared successfully"}
