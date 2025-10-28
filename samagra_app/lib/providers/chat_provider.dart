@@ -348,7 +348,9 @@ class ChatProvider extends ChangeNotifier {
         imageName: includeImage ? _pendingImageName : null,
         uploadedDocumentName: uploadedDocumentName,
       )) {
-        debugPrint('[ChatProvider] Stream chunk received -> length=${chunk.length}');
+        debugPrint(
+          '[ChatProvider] Stream chunk received -> length=${chunk.length}',
+        );
 
         // Check for clear signal
         if (chunk == '\u0000CLEAR\u0000') {
@@ -365,7 +367,10 @@ class ChatProvider extends ChangeNotifier {
 
         // Check for image data
         if (chunk.startsWith('\u0000IMAGE|')) {
-          final payload = chunk.substring('\u0000IMAGE|'.length, chunk.length - 1);
+          final payload = chunk.substring(
+            '\u0000IMAGE|'.length,
+            chunk.length - 1,
+          );
           final separatorIndex = payload.indexOf('|');
 
           String mimeType = 'image/png';
@@ -375,7 +380,9 @@ class ChatProvider extends ChangeNotifier {
             base64Data = payload.substring(separatorIndex + 1);
           }
 
-          debugPrint('[ChatProvider] Image marker detected -> mime=$mimeType base64Len=${base64Data.length}');
+          debugPrint(
+            '[ChatProvider] Image marker detected -> mime=$mimeType base64Len=${base64Data.length}',
+          );
           final imageBytes = _base64ToBytes(base64Data);
           if (imageBytes != null) {
             generatedImageBytes = imageBytes;
@@ -418,7 +425,9 @@ class ChatProvider extends ChangeNotifier {
       // Final update with complete content
       _messages[messageIndex] = _messages[messageIndex].copyWith(
         content: accumulatedResponse,
-        type: generatedImageBytes != null ? MessageType.image : MessageType.text,
+        type: generatedImageBytes != null
+            ? MessageType.image
+            : MessageType.text,
         imageBytes: generatedImageBytes,
         imageName: generatedImageBytes != null
             ? 'ai_image.${_mimeTypeToExtension(generatedImageMimeType ?? 'image/png')}'

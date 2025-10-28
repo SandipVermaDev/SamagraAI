@@ -1,8 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_saver/file_saver.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_message.dart';
 import '../providers/theme_provider.dart';
 import '../theme/app_theme.dart';
@@ -70,7 +75,7 @@ class MessageBubble extends StatelessWidget {
 
                       // Image preview if present
                       if (message.hasImage)
-                        _buildImagePreview(context, themeProvider),
+                        _buildImagePreview(context),
 
                       // Loading indicator for AI messages
                       if (message.isLoading)
@@ -105,63 +110,219 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildImagePreview(BuildContext context, ThemeProvider themeProvider) {
-    final isUser = message.sender == MessageSender.user;
-    final bool isAiGeneratedImage = !isUser && message.imageBytes != null;
-    
+  Widget _buildImageErrorPlaceholder() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      constraints: BoxConstraints(
-        maxWidth: isAiGeneratedImage ? 400 : 200,
-        maxHeight: isAiGeneratedImage ? 400 : 200,
+      height: 200,
+      width: 200,
+      color: Colors.grey[300],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(
+            Icons.broken_image,
+            color: Colors.grey,
+            size: 48,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Failed to load image',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: message.imageBytes != null
+    );
+  }
+
+  void _showImageDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final isAiGeneratedImage =
+            message.sender != MessageSender.user && message.imageBytes != null;
+        final Widget? enlargedImage = message.imageBytes != null
             ? Image.memory(
                 message.imageBytes!,
-                fit: isAiGeneratedImage ? BoxFit.contain : BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 200,
-                    width: 200,
-                    color: Colors.grey[300],
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.broken_image,
-                          color: Colors.grey,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Failed to load image',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                fit: BoxFit.contain,
               )
-            : Image.file(
-                File(message.imagePath!),
-                height: 200,
-                width: 200,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 200,
-                    width: 200,
-                    color: Colors.grey[300],
-                    child: const Icon(
-                      Icons.broken_image,
-                      color: Colors.grey,
-                      size: 48,
-                    ),
-                  );
-                },
-              ),
+            : (!kIsWeb && message.imagePath != null)
+                ? Image.file(
+                    File(message.imagePath!),
+                    fit: BoxFit.contain,
+                  )
+                : null;
+
+    final canDownload = message.imageBytes != null ||
+      (!kIsWeb && message.imagePath != null && message.imagePath!.isNotEmpty);
+
+    final size = MediaQuery.of(dialogContext).size;
+        final dialogWidth = size.width * 0.9 > 600 ? 600.0 : size.width * 0.9;
+        final dialogHeight = size.height * 0.8 > 700 ? 700.0 : size.height * 0.8;
+
+        return Dialog(
+          backgroundColor: Theme.of(dialogContext).dialogBackgroundColor,
+          child: SizedBox(
+            width: dialogWidth,
+            height: dialogHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: enlargedImage != null
+                        ? InteractiveViewer(
+                            maxScale: 5,
+                            minScale: 0.8,
+                            child: Center(child: enlargedImage),
+                          )
+                        : Center(child: _buildImageErrorPlaceholder()),
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: const Text('Close'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: canDownload
+                            ? () async {
+                                await _downloadImage(dialogContext);
+                              }
+                            : null,
+                        icon: const Icon(Icons.download),
+                        label: Text(isAiGeneratedImage ? 'Download' : 'Save'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadImage(BuildContext context) async {
+    final snackBarMessenger = ScaffoldMessenger.maybeOf(context);
+
+    try {
+      final Uint8List? bytes = await _resolveImageBytes();
+      if (bytes == null) {
+        snackBarMessenger?.showSnackBar(
+          const SnackBar(content: Text('Unable to access image data.')),
+        );
+        return;
+      }
+
+      final String originalName = _resolveFileName();
+      final String extension = _extractExtension(originalName);
+      final String extForSave = extension.isEmpty ? 'png' : extension;
+      final String baseName = extension.isEmpty
+          ? originalName.replaceAll(RegExp(r'\.+$'), '')
+          : originalName.substring(0, originalName.length - extension.length - 1);
+      final String sanitizedBaseName = baseName.isEmpty
+          ? 'generated_image_${DateTime.now().millisecondsSinceEpoch}'
+          : baseName;
+      final String savedFileName = '$sanitizedBaseName.$extForSave';
+
+      await FileSaver.instance.saveFile(
+        name: sanitizedBaseName,
+        bytes: bytes,
+        ext: extForSave,
+      );
+
+      snackBarMessenger?.showSnackBar(
+        SnackBar(content: Text('Image saved as $savedFileName')),
+      );
+    } catch (_) {
+      snackBarMessenger?.showSnackBar(
+        const SnackBar(content: Text('Failed to save image.')),
+      );
+    }
+  }
+
+  Future<Uint8List?> _resolveImageBytes() async {
+    if (message.imageBytes != null) {
+      return message.imageBytes;
+    }
+
+    if (message.imagePath != null && message.imagePath!.isNotEmpty) {
+      if (kIsWeb) {
+        return null;
+      }
+
+      try {
+        return await File(message.imagePath!).readAsBytes();
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  String _resolveFileName() {
+    if (message.imageName != null && message.imageName!.isNotEmpty) {
+      return message.imageName!;
+    }
+
+    if (message.imagePath != null && message.imagePath!.isNotEmpty) {
+      return p.basename(message.imagePath!);
+    }
+
+    return 'generated_image_${DateTime.now().millisecondsSinceEpoch}.png';
+  }
+
+  String _extractExtension(String fileName) {
+    final parts = fileName.split('.');
+    if (parts.length < 2) {
+      return '';
+    }
+    return parts.last.toLowerCase();
+  }
+
+  Widget _buildImagePreview(BuildContext context) {
+    final isUser = message.sender == MessageSender.user;
+    final bool isAiGeneratedImage = !isUser && message.imageBytes != null;
+
+    final imageWidget = message.imageBytes != null
+        ? Image.memory(
+            message.imageBytes!,
+            fit: isAiGeneratedImage ? BoxFit.contain : BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return _buildImageErrorPlaceholder();
+            },
+          )
+        : Image.file(
+            File(message.imagePath!),
+            height: 200,
+            width: 200,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return _buildImageErrorPlaceholder();
+            },
+          );
+
+    return GestureDetector(
+      onTap: () => _showImageDialog(context),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        constraints: BoxConstraints(
+          maxWidth: isAiGeneratedImage ? 400 : 200,
+          maxHeight: isAiGeneratedImage ? 400 : 200,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: imageWidget,
+        ),
       ),
     );
   }
