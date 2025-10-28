@@ -4,16 +4,48 @@ Model Manager for handling AI model selection and initialization
 from langchain_google_genai import ChatGoogleGenerativeAI
 from core.config import settings
 
+# Response modality enums (based on Gemini API)
+# 0 = UNSPECIFIED, 1 = TEXT, 2 = IMAGE, 3 = AUDIO
+MODALITY_TEXT = 1
+MODALITY_IMAGE = 2
+
 class ModelManager:
     """Manages AI model instances and switching"""
     
     # Available models mapping
     AVAILABLE_MODELS = {
-        'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
-        'gemini-2.5-flash': 'gemini-2.5-flash',
-        'gemini-2.5-pro': 'gemini-2.5-pro',
-        'gemini-2.0-flash-lite': 'gemini-2.0-flash-lite',
-        'gemini-2.0-flash': 'gemini-2.0-flash',
+        # Text models
+        'gemini-2.5-flash-lite': {
+            'name': 'Gemini 2.5 Flash-Lite',
+            'description': 'Fastest and most cost-effective model',
+            'mode': 'text',
+        },
+        'gemini-2.5-flash': {
+            'name': 'Gemini 2.5 Flash',
+            'description': 'Fast and efficient for most conversations',
+            'mode': 'text',
+        },
+        'gemini-2.5-pro': {
+            'name': 'Gemini 2.5 Pro',
+            'description': 'Most capable model for complex tasks',
+            'mode': 'text',
+        },
+        'gemini-2.0-flash-lite': {
+            'name': 'Gemini 2.0 Flash-Lite',
+            'description': 'Lightweight and quick responses',
+            'mode': 'text',
+        },
+        'gemini-2.0-flash': {
+            'name': 'Gemini 2.0 Flash',
+            'description': 'Balanced performance and speed',
+            'mode': 'text',
+        },
+        # Image generation model
+        'gemini-2.0-flash-preview-image-generation': {
+            'name': 'Gemini 2.0 Flash Preview',
+            'description': 'Image generation model',
+            'mode': 'image',
+        },
     }
     
     def __init__(self):
@@ -23,23 +55,39 @@ class ModelManager:
     
     def _initialize_model(self):
         """Initialize the language model with current settings"""
-        model_name = self.AVAILABLE_MODELS.get(
-            self._current_model_id,
-            'gemini-2.5-flash-lite'
-        )
+        if self._current_model_id not in self.AVAILABLE_MODELS:
+            print(f"Warning: Unknown model ID '{self._current_model_id}'. Using default.")
+            self._current_model_id = 'gemini-2.5-flash-lite'
         
-        print(f"Initializing model: {model_name}")
+        model_info = self.AVAILABLE_MODELS[self._current_model_id]
+        is_image_model = model_info.get('mode') == 'image'
         
-        self._llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            google_api_key=settings.GOOGLE_API_KEY,
-            convert_system_message_to_human=True,
-            streaming=True
-        )
+        print(f"Initializing model: {self._current_model_id} (mode: {model_info.get('mode', 'text')})")
+        
+        # Configure model based on type
+        config = {
+            'model': self._current_model_id,
+            'google_api_key': settings.GOOGLE_API_KEY,
+            'convert_system_message_to_human': True,
+            'streaming': True
+        }
+        
+        # Image generation models require specific response modalities
+        # Use enum values: 1=TEXT, 2=IMAGE
+        if is_image_model:
+            config['response_modalities'] = [MODALITY_IMAGE, MODALITY_TEXT]
+        
+        self._llm = ChatGoogleGenerativeAI(**config)
     
     def get_llm(self):
         """Get the current language model instance"""
         return self._llm
+    
+    def is_image_generation_model(self) -> bool:
+        """Check if current model is an image generation model"""
+        if self._current_model_id not in self.AVAILABLE_MODELS:
+            return False
+        return self.AVAILABLE_MODELS[self._current_model_id].get('mode') == 'image'
     
     def set_model(self, model_id: str):
         """

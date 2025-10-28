@@ -127,10 +127,10 @@ async def get_available_models():
             {
                 "id": model_id,
                 "name": info["name"],
-                "description": info["description"]
+                "description": info["description"],
+                "mode": info["mode"]
             }
             for model_id, info in model_manager.AVAILABLE_MODELS.items()
         ],
-        "current_model": model_manager.current_model_id
+        "current_model": model_manager.get_current_model_id()
     }
-    return {"message": "Documents cleared successfully"}

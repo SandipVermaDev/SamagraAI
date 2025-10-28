@@ -247,9 +247,30 @@ async def generate_ai_response_stream(
             print("No document or image loaded. Using general conversation mode (streaming).")
             async for chunk in get_llm().astream(message):
                 if chunk.content:
-                    # Send each token immediately
-                    data = f"data: {json.dumps({'content': chunk.content})}\n\n"
-                    yield data
+                    # Handle both text and multimodal content (for image generation)
+                    content = chunk.content
+                    print(f"DEBUG: Chunk content type: {type(content)}, value: {content[:200] if isinstance(content, str) else content}")
+                    
+                    # If content is a list (multimodal response with images), extract text and image data
+                    if isinstance(content, list):
+                        for item in content:
+                            if isinstance(item, dict):
+                                # Check if it's text or image data
+                                if 'text' in item:
+                                    data = f"data: {json.dumps({'content': item['text'], 'type': 'text'})}\n\n"
+                                    yield data
+                                elif 'image' in item or 'inline_data' in item:
+                                    # Image data - send with type marker
+                                    data = f"data: {json.dumps({'content': '[Image Generated]', 'type': 'image', 'image_data': item})}\n\n"
+                                    yield data
+                            elif isinstance(item, str):
+                                data = f"data: {json.dumps({'content': item, 'type': 'text'})}\n\n"
+                                yield data
+                    else:
+                        # Regular text content
+                        data = f"data: {json.dumps({'content': content, 'type': 'text'})}\n\n"
+                        yield data
+                    
                     # Force flush by yielding empty byte to trigger send
                     await __import__('asyncio').sleep(0)
             yield f"data: {json.dumps({'done': True})}\n\n"

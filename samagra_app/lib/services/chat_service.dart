@@ -285,7 +285,17 @@ class ChatService {
                 try {
                   final data = jsonDecode(jsonStr);
                   if (data['content'] != null) {
-                    yield data['content'] as String;
+                    // Handle both string and structured content
+                    final content = data['content'];
+                    if (content is String) {
+                      yield content;
+                    } else if (content is Map) {
+                      // Structured content (e.g., image data)
+                      yield content['text'] ?? content.toString();
+                    } else {
+                      // Fallback: convert to string
+                      yield content.toString();
+                    }
                   }
                   if (data['done'] == true) {
                     debugPrint(
@@ -312,7 +322,17 @@ class ChatService {
                 try {
                   final data = jsonDecode(jsonStr);
                   if (data['content'] != null) {
-                    yield data['content'] as String;
+                    // Handle both string and structured content
+                    final content = data['content'];
+                    if (content is String) {
+                      yield content;
+                    } else if (content is Map) {
+                      // Structured content (e.g., image data)
+                      yield content['text'] ?? content.toString();
+                    } else {
+                      // Fallback: convert to string
+                      yield content.toString();
+                    }
                   }
                   if (data['done'] == true) {
                     debugPrint(

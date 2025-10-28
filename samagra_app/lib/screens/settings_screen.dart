@@ -5,8 +5,15 @@ import '../providers/theme_provider.dart';
 import '../models/ai_model.dart';
 import '../theme/app_theme.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  ModelMode _selectedMode = ModelMode.text;
 
   @override
   Widget build(BuildContext context) {
@@ -14,6 +21,17 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: Consumer2<ChatProvider, ThemeProvider>(
         builder: (context, chatProvider, themeProvider, child) {
+          // Sync mode with current model
+          if (chatProvider.selectedModel.mode != _selectedMode) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _selectedMode = chatProvider.selectedModel.mode;
+                });
+              }
+            });
+          }
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -131,27 +149,102 @@ class SettingsScreen extends StatelessWidget {
     ChatProvider chatProvider,
     ThemeProvider themeProvider,
   ) {
+    // Filter models based on selected mode
+    final displayModels = _selectedMode == ModelMode.text
+        ? AIModel.textModels
+        : AIModel.imageModels;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'AI Model',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: themeProvider.getTextPrimary(context),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'AI Model',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: themeProvider.getTextPrimary(context),
+                  ),
+                ),
+                // Mode selector
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: themeProvider.isDarkMode
+                        ? Colors.grey[800]
+                        : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButton<ModelMode>(
+                    value: _selectedMode,
+                    underline: const SizedBox(),
+                    isDense: true,
+                    icon: const Icon(Icons.arrow_drop_down, size: 18),
+                    style: TextStyle(
+                      color: themeProvider.getTextPrimary(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: ModelMode.text,
+                        child: Text('Text'),
+                      ),
+                      DropdownMenuItem(
+                        value: ModelMode.image,
+                        child: Text('Image'),
+                      ),
+                    ],
+                    onChanged: (ModelMode? newMode) {
+                      if (newMode != null) {
+                        setState(() {
+                          _selectedMode = newMode;
+                          // Auto-select first model of the new mode
+                          if (newMode == ModelMode.text) {
+                            chatProvider
+                                .setSelectedModel(AIModel.textModels.first);
+                          } else {
+                            chatProvider
+                                .setSelectedModel(AIModel.imageModels.first);
+                          }
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<AIModel>(
-              initialValue: chatProvider.selectedModel,
-              items: AIModel.availableModels.map((model) {
+              value: displayModels.contains(chatProvider.selectedModel)
+                  ? chatProvider.selectedModel
+                  : displayModels.first,
+              items: displayModels.map((model) {
                 return DropdownMenuItem<AIModel>(
                   value: model,
-                  child: Text(model.name),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        model.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        model.description,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: themeProvider.getTextSecondary(context),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               }).toList(),
               onChanged: (model) {
@@ -159,6 +252,11 @@ class SettingsScreen extends StatelessWidget {
                   chatProvider.setSelectedModel(model);
                 }
               },
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
             ),
           ],
         ),

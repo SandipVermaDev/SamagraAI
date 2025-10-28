@@ -14,6 +14,7 @@ class ModelSelector extends StatefulWidget {
 
 class _ModelSelectorState extends State<ModelSelector> {
   bool _isExpanded = false;
+  ModelMode _selectedMode = ModelMode.text;
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +22,17 @@ class _ModelSelectorState extends State<ModelSelector> {
       builder: (context, chatProvider, themeProvider, child) {
         final currentModel = chatProvider.selectedModel;
         final screenWidth = MediaQuery.of(context).size.width;
+
+        // Sync mode with current model
+        if (currentModel.mode != _selectedMode) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _selectedMode = currentModel.mode;
+              });
+            }
+          });
+        }
 
         // Responsive sizing based on screen width
         final collapsedWidth = screenWidth < 400 ? 110.0 : 140.0;
@@ -126,6 +138,11 @@ class _ModelSelectorState extends State<ModelSelector> {
     ThemeProvider themeProvider,
     AIModel currentModel,
   ) {
+    // Filter models based on selected mode
+    final displayModels = _selectedMode == ModelMode.text
+        ? AIModel.textModels
+        : AIModel.imageModels;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -153,6 +170,64 @@ class _ModelSelectorState extends State<ModelSelector> {
                 ),
               ),
             ),
+            // Mode Selector Dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: (themeProvider.isDarkMode
+                        ? AppColors.darkDocumentBannerText
+                        : AppColors.lightDocumentBannerText)
+                    .withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: DropdownButton<ModelMode>(
+                value: _selectedMode,
+                underline: const SizedBox(),
+                isDense: true,
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  size: 16,
+                  color: themeProvider.isDarkMode
+                      ? AppColors.darkDocumentBannerText
+                      : AppColors.lightDocumentBannerText,
+                ),
+                dropdownColor: themeProvider.isDarkMode
+                    ? AppColors.darkDocumentBanner
+                    : AppColors.lightDocumentBanner,
+                style: TextStyle(
+                  color: themeProvider.isDarkMode
+                      ? AppColors.darkDocumentBannerText
+                      : AppColors.lightDocumentBannerText,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: ModelMode.text,
+                    child: Text('Text'),
+                  ),
+                  DropdownMenuItem(
+                    value: ModelMode.image,
+                    child: Text('Image'),
+                  ),
+                ],
+                onChanged: (ModelMode? newMode) {
+                  if (newMode != null) {
+                    setState(() {
+                      _selectedMode = newMode;
+                      // Auto-select first model of the new mode
+                      if (newMode == ModelMode.text) {
+                        chatProvider.setSelectedModel(AIModel.textModels.first);
+                      } else {
+                        chatProvider
+                            .setSelectedModel(AIModel.imageModels.first);
+                      }
+                    });
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 4),
             InkWell(
               onTap: () {
                 setState(() {
@@ -190,7 +265,7 @@ class _ModelSelectorState extends State<ModelSelector> {
             physics: const BouncingScrollPhysics(),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: AIModel.availableModels.map((model) {
+              children: displayModels.map((model) {
                 final isSelected = model.id == currentModel.id;
                 return _buildModelItem(
                   themeProvider: themeProvider,
