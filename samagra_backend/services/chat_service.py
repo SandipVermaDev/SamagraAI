@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 from typing import Optional, AsyncGenerator
@@ -8,10 +9,118 @@ from core.config import settings
 from services.rag_service import document_store, process_uploaded_document, process_uploaded_image
 from services.model_manager import model_manager
 
+try:
+    import google.generativeai as genai  # type: ignore
+
+    genai.configure(api_key=settings.GOOGLE_API_KEY)
+    HAS_GOOGLE_GENAI = True
+except ImportError:
+    genai = None
+    HAS_GOOGLE_GENAI = False
+
 # Get the language model from model manager
 def get_llm():
     """Get the current language model instance"""
     return model_manager.get_llm()
+
+
+async def _generate_image_response_stream(message: str) -> AsyncGenerator[str, None]:
+    """Generate an image using the Gemini image model and stream the result."""
+    if not HAS_GOOGLE_GENAI:
+        warning = (
+            "Image generation support is not available on the server. "
+            "Install the 'google-generativeai' package to enable it."
+        )
+        print(f"WARN: {warning}")
+        yield f"data: {json.dumps({'content': warning, 'type': 'text'})}\n\n"
+        yield f"data: {json.dumps({'done': True})}\n\n"
+        return
+
+    loop = asyncio.get_running_loop()
+
+    def _generate_sync():
+        model_id = model_manager.get_current_model_id()
+        print(f"DEBUG: Calling GenerativeModel.generate_content for image with model '{model_id}'")
+        model = genai.GenerativeModel(model_id)
+        contents = [{
+            'role': 'user',
+            'parts': [{'text': message}],
+        }]
+        return model.generate_content(
+            contents,
+            generation_config={'response_modalities': ['IMAGE', 'TEXT']},
+        )
+
+    try:
+        response = await loop.run_in_executor(None, _generate_sync)
+    except Exception as exc:
+        error_msg = f"Image generation failed: {exc}"
+        print(f"ERROR: {error_msg}")
+        yield f"data: {json.dumps({'content': error_msg, 'type': 'text'})}\n\n"
+        yield f"data: {json.dumps({'done': True})}\n\n"
+        return
+
+    text_parts = []
+    image_parts = []
+
+    candidates = getattr(response, 'candidates', None) or []
+    print(f"DEBUG: Image response returned {len(candidates)} candidate(s)")
+    for candidate_idx, candidate in enumerate(candidates):
+        content = getattr(candidate, 'content', None)
+        parts = getattr(content, 'parts', None) if content else None
+        if not parts:
+            continue
+        print(f"DEBUG: Candidate {candidate_idx} has {len(parts)} part(s)")
+        for part_idx, part in enumerate(parts):
+            text_value = getattr(part, 'text', None)
+            if text_value:
+                preview = text_value[:120].replace('\n', ' ')
+                print(f"DEBUG: Text part {part_idx} -> {preview}...")
+                text_parts.append(text_value)
+
+            inline_data = getattr(part, 'inline_data', None)
+            if inline_data:
+                data = getattr(inline_data, 'data', None)
+                mime_type = getattr(inline_data, 'mime_type', None)
+
+                if data is None and isinstance(inline_data, dict):
+                    data = inline_data.get('data')
+                    mime_type = inline_data.get('mime_type', mime_type)
+
+                if data:
+                    mime_type = mime_type or 'image/png'
+                    print(
+                        f"DEBUG: Inline image part {part_idx} -> mime={mime_type}, size={len(data)} chars"
+                    )
+                    # Some SDK responses may provide bytes instead of base64 strings
+                    if isinstance(data, bytes):
+                        data = base64.b64encode(data).decode('utf-8')
+                    image_parts.append({'data': data, 'mime_type': mime_type})
+                else:
+                    print(f"DEBUG: Inline image part {part_idx} missing data")
+
+    if text_parts:
+        for text in text_parts:
+            yield f"data: {json.dumps({'content': text, 'type': 'text'})}\n\n"
+
+    if image_parts:
+        for index, img in enumerate(image_parts, start=1):
+            print(
+                f"DEBUG: Streaming generated image #{index} -> mime={img['mime_type']}, size={len(img['data'])} chars"
+            )
+            payload = {
+                'content': img['data'],
+                'type': 'image',
+                'mime_type': img['mime_type'],
+            }
+            yield f"data: {json.dumps(payload)}\n\n"
+    else:
+        print("DEBUG: No image data returned by the Gemini image model")
+        if not text_parts:
+            fallback = "The image model did not return an image. Please try rephrasing your prompt."
+            yield f"data: {json.dumps({'content': fallback, 'type': 'text'})}\n\n"
+
+    yield f"data: {json.dumps({'done': True})}\n\n"
 
 def generate_ai_response(
     message: str,
@@ -243,6 +352,11 @@ async def generate_ai_response_stream(
     
     try:
         if current_retriever is None:
+            if model_manager.is_image_generation_model():
+                print("Image generation model active. Using direct image generation pipeline.")
+                async for chunk in _generate_image_response_stream(message):
+                    yield chunk
+                return
             # If no document or image is uploaded, behave as a general chatbot
             print("No document or image loaded. Using general conversation mode (streaming).")
             async for chunk in get_llm().astream(message):
@@ -257,17 +371,45 @@ async def generate_ai_response_stream(
                             if isinstance(item, dict):
                                 # Check if it's text or image data
                                 if 'text' in item:
+                                    preview = item['text'][:120].replace('\n', ' ')
+                                    print(f"DEBUG: Streaming text chunk -> {preview}...")
                                     data = f"data: {json.dumps({'content': item['text'], 'type': 'text'})}\n\n"
                                     yield data
                                 elif 'image' in item or 'inline_data' in item:
-                                    # Image data - send with type marker
-                                    data = f"data: {json.dumps({'content': '[Image Generated]', 'type': 'image', 'image_data': item})}\n\n"
-                                    yield data
+                                    # Extract inline image data for streaming
+                                    inline_data = None
+                                    if 'inline_data' in item and isinstance(item['inline_data'], dict):
+                                        inline_data = item['inline_data']
+                                    elif 'image' in item and isinstance(item['image'], dict):
+                                        inline_data = item['image'].get('inline_data') if isinstance(item['image'].get('inline_data'), dict) else None
+
+                                    if inline_data:
+                                        image_base64 = inline_data.get('data')
+                                        mime_type = inline_data.get('mime_type', 'image/png')
+                                        if image_base64:
+                                            print(
+                                                f"DEBUG: Streaming image chunk -> mime={mime_type}, size={len(image_base64)} chars"
+                                            )
+                                            payload = {
+                                                'content': image_base64,
+                                                'type': 'image',
+                                                'mime_type': mime_type,
+                                            }
+                                            data = f"data: {json.dumps(payload)}\n\n"
+                                            yield data
+                                        else:
+                                            print("DEBUG: Inline image data missing 'data' field")
+                                    else:
+                                        print(f"DEBUG: Unable to locate inline image data in item: {item}")
                             elif isinstance(item, str):
+                                preview = item[:120].replace('\n', ' ')
+                                print(f"DEBUG: Streaming text string -> {preview}...")
                                 data = f"data: {json.dumps({'content': item, 'type': 'text'})}\n\n"
                                 yield data
                     else:
                         # Regular text content
+                        preview = str(content)[:120].replace('\n', ' ')
+                        print(f"DEBUG: Streaming plain text -> {preview}...")
                         data = f"data: {json.dumps({'content': content, 'type': 'text'})}\n\n"
                         yield data
                     

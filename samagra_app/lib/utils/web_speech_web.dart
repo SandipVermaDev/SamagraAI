@@ -28,7 +28,7 @@ class WebSpeechRecognizer {
     try {
       _recognition.continuous = true;
       _recognition.interimResults = true;
-      final String? lang = html.window.navigator.language;
+      final String lang = html.window.navigator.language;
       _recognition.lang = (lang != null && lang.isNotEmpty) ? lang : 'en-US';
       _isSupported = true;
       return true;

@@ -173,8 +173,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 // Mode selector
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: themeProvider.isDarkMode
                         ? Colors.grey[800]
@@ -207,11 +209,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _selectedMode = newMode;
                           // Auto-select first model of the new mode
                           if (newMode == ModelMode.text) {
-                            chatProvider
-                                .setSelectedModel(AIModel.textModels.first);
+                            chatProvider.setSelectedModel(
+                              AIModel.textModels.first,
+                            );
                           } else {
-                            chatProvider
-                                .setSelectedModel(AIModel.imageModels.first);
+                            chatProvider.setSelectedModel(
+                              AIModel.imageModels.first,
+                            );
                           }
                         });
                       }
@@ -222,7 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<AIModel>(
-              value: displayModels.contains(chatProvider.selectedModel)
+              initialValue: displayModels.contains(chatProvider.selectedModel)
                   ? chatProvider.selectedModel
                   : displayModels.first,
               items: displayModels.map((model) {
@@ -254,8 +258,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
             ),
           ],

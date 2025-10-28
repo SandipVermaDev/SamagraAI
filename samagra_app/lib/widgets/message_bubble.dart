@@ -64,13 +64,13 @@ class MessageBubble extends StatelessWidget {
                       if (message.hasAttachedDocuments)
                         _buildAttachedDocuments(context, themeProvider),
 
-                      // Image preview if present
-                      if (message.hasImage)
-                        _buildImagePreview(context, themeProvider),
-
                       // Message content
                       if (message.content.isNotEmpty)
                         _buildMessageContent(context, isUser, themeProvider),
+
+                      // Image preview if present
+                      if (message.hasImage)
+                        _buildImagePreview(context, themeProvider),
 
                       // Loading indicator for AI messages
                       if (message.isLoading)
@@ -106,16 +106,43 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildImagePreview(BuildContext context, ThemeProvider themeProvider) {
+    final isUser = message.sender == MessageSender.user;
+    final bool isAiGeneratedImage = !isUser && message.imageBytes != null;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
+      constraints: BoxConstraints(
+        maxWidth: isAiGeneratedImage ? 400 : 200,
+        maxHeight: isAiGeneratedImage ? 400 : 200,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: message.imageBytes != null
             ? Image.memory(
                 message.imageBytes!,
-                height: 200,
-                width: 200,
-                fit: BoxFit.cover,
+                fit: isAiGeneratedImage ? BoxFit.contain : BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 200,
+                    width: 200,
+                    color: Colors.grey[300],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.broken_image,
+                          color: Colors.grey,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Failed to load image',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               )
             : Image.file(
                 File(message.imagePath!),
@@ -393,8 +420,7 @@ class MessageBubble extends StatelessWidget {
                     ],
                   ),
                 ),
-              )
-              .toList(),
+              ),
           if (message.attachedDocuments!.length > 3)
             Text(
               '+${message.attachedDocuments!.length - 3} more',

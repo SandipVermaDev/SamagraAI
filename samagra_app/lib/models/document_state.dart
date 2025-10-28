@@ -174,7 +174,7 @@ class DocumentState {
 
     final total = totalSize;
     if (total < 1024) {
-      return '${total} B';
+      return '$total B';
     } else if (total < 1024 * 1024) {
       return '${(total / 1024).toStringAsFixed(1)} KB';
     } else {

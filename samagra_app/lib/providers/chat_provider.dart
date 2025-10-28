@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../models/chat_message.dart';
 import '../models/ai_model.dart';
@@ -287,10 +289,12 @@ class ChatProvider extends ChangeNotifier {
     debugPrint('[ChatProvider] sendMessage:');
     debugPrint('  message="${content.replaceAll('\n', ' ')}"');
     if (includeImage) {
-      if (_pendingImagePath != null)
+      if (_pendingImagePath != null) {
         debugPrint('  imagePath=$_pendingImagePath');
-      if (_pendingImageBytes != null)
+      }
+      if (_pendingImageBytes != null) {
         debugPrint('  imageBytes=${_pendingImageBytes!.length}');
+      }
     }
     if (_documentState.hasDocument) {
       final pending = _documentState.documents
@@ -330,6 +334,8 @@ class ChatProvider extends ChangeNotifier {
       }
 
       String accumulatedResponse = '';
+      Uint8List? generatedImageBytes;
+      String? generatedImageMimeType;
       int chunkCount = 0;
       const batchSize = 3; // Update UI every 3 chunks for smoother performance
 
@@ -342,14 +348,55 @@ class ChatProvider extends ChangeNotifier {
         imageName: includeImage ? _pendingImageName : null,
         uploadedDocumentName: uploadedDocumentName,
       )) {
+        debugPrint('[ChatProvider] Stream chunk received -> length=${chunk.length}');
+
         // Check for clear signal
         if (chunk == '\u0000CLEAR\u0000') {
           accumulatedResponse = '';
+          generatedImageBytes = null;
+          generatedImageMimeType = null;
           _messages[messageIndex] = _messages[messageIndex].copyWith(
             content: '',
             isLoading: true,
           );
           notifyListeners();
+          continue;
+        }
+
+        // Check for image data
+        if (chunk.startsWith('\u0000IMAGE|')) {
+          final payload = chunk.substring('\u0000IMAGE|'.length, chunk.length - 1);
+          final separatorIndex = payload.indexOf('|');
+
+          String mimeType = 'image/png';
+          String base64Data = payload;
+          if (separatorIndex != -1) {
+            mimeType = payload.substring(0, separatorIndex);
+            base64Data = payload.substring(separatorIndex + 1);
+          }
+
+          debugPrint('[ChatProvider] Image marker detected -> mime=$mimeType base64Len=${base64Data.length}');
+          final imageBytes = _base64ToBytes(base64Data);
+          if (imageBytes != null) {
+            generatedImageBytes = imageBytes;
+            generatedImageMimeType = mimeType;
+
+            debugPrint(
+              '[ChatProvider] Received AI image ($mimeType), bytes=${imageBytes.length}',
+            );
+
+            // Update message with image preview while streaming
+            _messages[messageIndex] = _messages[messageIndex].copyWith(
+              content: accumulatedResponse,
+              type: MessageType.image,
+              imageBytes: imageBytes,
+              imageName: 'ai_image.${_mimeTypeToExtension(mimeType)}',
+              isLoading: true,
+            );
+            notifyListeners();
+          } else {
+            debugPrint('[ChatProvider] Failed to decode AI image data');
+          }
           continue;
         }
 
@@ -371,6 +418,11 @@ class ChatProvider extends ChangeNotifier {
       // Final update with complete content
       _messages[messageIndex] = _messages[messageIndex].copyWith(
         content: accumulatedResponse,
+        type: generatedImageBytes != null ? MessageType.image : MessageType.text,
+        imageBytes: generatedImageBytes,
+        imageName: generatedImageBytes != null
+            ? 'ai_image.${_mimeTypeToExtension(generatedImageMimeType ?? 'image/png')}'
+            : null,
         isLoading: false,
       );
 
@@ -414,5 +466,29 @@ class ChatProvider extends ChangeNotifier {
   void removeMessage(String messageId) {
     _messages.removeWhere((msg) => msg.id == messageId);
     notifyListeners();
+  }
+
+  // Helper method to convert base64 string to Uint8List
+  Uint8List? _base64ToBytes(String base64String) {
+    try {
+      return base64Decode(base64String);
+    } catch (e) {
+      debugPrint('[ChatProvider] Error decoding base64: $e');
+      return null;
+    }
+  }
+
+  String _mimeTypeToExtension(String mimeType) {
+    switch (mimeType.toLowerCase()) {
+      case 'image/jpeg':
+      case 'image/jpg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/webp':
+        return 'webp';
+      default:
+        return 'png';
+    }
   }
 }

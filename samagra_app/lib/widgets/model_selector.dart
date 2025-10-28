@@ -174,10 +174,11 @@ class _ModelSelectorState extends State<ModelSelector> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: (themeProvider.isDarkMode
-                        ? AppColors.darkDocumentBannerText
-                        : AppColors.lightDocumentBannerText)
-                    .withOpacity(0.15),
+                color:
+                    (themeProvider.isDarkMode
+                            ? AppColors.darkDocumentBannerText
+                            : AppColors.lightDocumentBannerText)
+                        .withOpacity(0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: DropdownButton<ModelMode>(
@@ -202,10 +203,7 @@ class _ModelSelectorState extends State<ModelSelector> {
                   fontWeight: FontWeight.w600,
                 ),
                 items: const [
-                  DropdownMenuItem(
-                    value: ModelMode.text,
-                    child: Text('Text'),
-                  ),
+                  DropdownMenuItem(value: ModelMode.text, child: Text('Text')),
                   DropdownMenuItem(
                     value: ModelMode.image,
                     child: Text('Image'),
@@ -219,8 +217,9 @@ class _ModelSelectorState extends State<ModelSelector> {
                       if (newMode == ModelMode.text) {
                         chatProvider.setSelectedModel(AIModel.textModels.first);
                       } else {
-                        chatProvider
-                            .setSelectedModel(AIModel.imageModels.first);
+                        chatProvider.setSelectedModel(
+                          AIModel.imageModels.first,
+                        );
                       }
                     });
                   }

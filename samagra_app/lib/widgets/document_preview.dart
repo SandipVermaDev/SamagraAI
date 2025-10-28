@@ -143,8 +143,7 @@ class DocumentPreview extends StatelessWidget {
                       ],
                     ),
                   ),
-                )
-                .toList(),
+                ),
 
             if (documents.length > 3)
               Text(

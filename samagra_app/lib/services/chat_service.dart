@@ -284,17 +284,42 @@ class ChatService {
                 final jsonStr = line.substring(6);
                 try {
                   final data = jsonDecode(jsonStr);
+                  final type = data['type'];
+                  String? contentPreview;
+                  if (data['content'] is String) {
+                    final contentStr = data['content'] as String;
+                    contentPreview = contentStr.length > 80
+                        ? '${contentStr.substring(0, 80)}...'
+                        : contentStr;
+                  } else if (data['content'] != null) {
+                    contentPreview = data['content'].toString();
+                  }
+                  debugPrint(
+                    '[ChatService] SSE chunk -> type=$type preview=$contentPreview',
+                  );
                   if (data['content'] != null) {
-                    // Handle both string and structured content
-                    final content = data['content'];
-                    if (content is String) {
-                      yield content;
-                    } else if (content is Map) {
-                      // Structured content (e.g., image data)
-                      yield content['text'] ?? content.toString();
+                    // Check if this is an image response
+                    if (data['type'] == 'image') {
+                      final mimeType = data['mime_type'] ?? 'image/png';
+                      final imageData = data['content'];
+                      if (imageData is String && imageData.isNotEmpty) {
+                        debugPrint(
+                          '[ChatService] SSE image chunk -> mime=$mimeType size=${imageData.length}',
+                        );
+                        yield '\u0000IMAGE|$mimeType|$imageData\u0000';
+                      }
                     } else {
-                      // Fallback: convert to string
-                      yield content.toString();
+                      // Handle both string and structured content
+                      final content = data['content'];
+                      if (content is String) {
+                        yield content;
+                      } else if (content is Map) {
+                        // Structured content (e.g., image data)
+                        yield content['text'] ?? content.toString();
+                      } else {
+                        // Fallback: convert to string
+                        yield content.toString();
+                      }
                     }
                   }
                   if (data['done'] == true) {
@@ -321,17 +346,42 @@ class ChatService {
                 final jsonStr = line.substring(6);
                 try {
                   final data = jsonDecode(jsonStr);
+                  final type = data['type'];
+                  String? contentPreview;
+                  if (data['content'] is String) {
+                    final contentStr = data['content'] as String;
+                    contentPreview = contentStr.length > 80
+                        ? '${contentStr.substring(0, 80)}...'
+                        : contentStr;
+                  } else if (data['content'] != null) {
+                    contentPreview = data['content'].toString();
+                  }
+                  debugPrint(
+                    '[ChatService] SSE chunk -> type=$type preview=$contentPreview',
+                  );
                   if (data['content'] != null) {
-                    // Handle both string and structured content
-                    final content = data['content'];
-                    if (content is String) {
-                      yield content;
-                    } else if (content is Map) {
-                      // Structured content (e.g., image data)
-                      yield content['text'] ?? content.toString();
+                    // Check if this is an image response
+                    if (data['type'] == 'image') {
+                      final mimeType = data['mime_type'] ?? 'image/png';
+                      final imageData = data['content'];
+                      if (imageData is String && imageData.isNotEmpty) {
+                        debugPrint(
+                          '[ChatService] SSE image chunk -> mime=$mimeType size=${imageData.length}',
+                        );
+                        yield '\u0000IMAGE|$mimeType|$imageData\u0000';
+                      }
                     } else {
-                      // Fallback: convert to string
-                      yield content.toString();
+                      // Handle both string and structured content
+                      final content = data['content'];
+                      if (content is String) {
+                        yield content;
+                      } else if (content is Map) {
+                        // Structured content (e.g., image data)
+                        yield content['text'] ?? content.toString();
+                      } else {
+                        // Fallback: convert to string
+                        yield content.toString();
+                      }
                     }
                   }
                   if (data['done'] == true) {

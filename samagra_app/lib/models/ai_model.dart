@@ -1,7 +1,4 @@
-enum ModelMode {
-  text,
-  image,
-}
+enum ModelMode { text, image }
 
 class AIModel {
   final String id;
@@ -60,10 +57,7 @@ class AIModel {
     ),
   ];
 
-  static const List<AIModel> availableModels = [
-    ...textModels,
-    ...imageModels,
-  ];
+  static const List<AIModel> availableModels = [...textModels, ...imageModels];
 
   static AIModel getDefault() => availableModels.first;
 
