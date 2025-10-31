@@ -74,8 +74,7 @@ class MessageBubble extends StatelessWidget {
                         _buildMessageContent(context, isUser, themeProvider),
 
                       // Image preview if present
-                      if (message.hasImage)
-                        _buildImagePreview(context),
+                      if (message.hasImage) _buildImagePreview(context),
 
                       // Loading indicator for AI messages
                       if (message.isLoading)
@@ -118,16 +117,9 @@ class MessageBubble extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: const [
-          Icon(
-            Icons.broken_image,
-            color: Colors.grey,
-            size: 48,
-          ),
+          Icon(Icons.broken_image, color: Colors.grey, size: 48),
           SizedBox(height: 8),
-          Text(
-            'Failed to load image',
-            style: TextStyle(color: Colors.grey),
-          ),
+          Text('Failed to load image', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -140,23 +132,22 @@ class MessageBubble extends StatelessWidget {
         final isAiGeneratedImage =
             message.sender != MessageSender.user && message.imageBytes != null;
         final Widget? enlargedImage = message.imageBytes != null
-            ? Image.memory(
-                message.imageBytes!,
-                fit: BoxFit.contain,
-              )
+            ? Image.memory(message.imageBytes!, fit: BoxFit.contain)
             : (!kIsWeb && message.imagePath != null)
-                ? Image.file(
-                    File(message.imagePath!),
-                    fit: BoxFit.contain,
-                  )
-                : null;
+            ? Image.file(File(message.imagePath!), fit: BoxFit.contain)
+            : null;
 
-    final canDownload = message.imageBytes != null ||
-      (!kIsWeb && message.imagePath != null && message.imagePath!.isNotEmpty);
+        final canDownload =
+            message.imageBytes != null ||
+            (!kIsWeb &&
+                message.imagePath != null &&
+                message.imagePath!.isNotEmpty);
 
-    final size = MediaQuery.of(dialogContext).size;
+        final size = MediaQuery.of(dialogContext).size;
         final dialogWidth = size.width * 0.9 > 600 ? 600.0 : size.width * 0.9;
-        final dialogHeight = size.height * 0.8 > 700 ? 700.0 : size.height * 0.8;
+        final dialogHeight = size.height * 0.8 > 700
+            ? 700.0
+            : size.height * 0.8;
 
         return Dialog(
           backgroundColor: Theme.of(dialogContext).dialogBackgroundColor,
@@ -180,8 +171,10 @@ class MessageBubble extends StatelessWidget {
                 ),
                 const Divider(height: 1),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -227,7 +220,10 @@ class MessageBubble extends StatelessWidget {
       final String extForSave = extension.isEmpty ? 'png' : extension;
       final String baseName = extension.isEmpty
           ? originalName.replaceAll(RegExp(r'\.+$'), '')
-          : originalName.substring(0, originalName.length - extension.length - 1);
+          : originalName.substring(
+              0,
+              originalName.length - extension.length - 1,
+            );
       final String sanitizedBaseName = baseName.isEmpty
           ? 'generated_image_${DateTime.now().millisecondsSinceEpoch}'
           : baseName;

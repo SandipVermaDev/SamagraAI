@@ -225,42 +225,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<AIModel>(
-              initialValue: displayModels.contains(chatProvider.selectedModel)
-                  ? chatProvider.selectedModel
-                  : displayModels.first,
-              items: displayModels.map((model) {
-                return DropdownMenuItem<AIModel>(
-                  value: model,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        model.name,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text(
-                        model.description,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: themeProvider.getTextSecondary(context),
+            SizedBox(
+              height: 60,
+              child: DropdownButtonFormField<AIModel>(
+                initialValue: displayModels.contains(chatProvider.selectedModel)
+                    ? chatProvider.selectedModel
+                    : displayModels.first,
+                isExpanded: true,
+                isDense: false,
+                itemHeight: null,
+                items: displayModels.map((model) {
+                  return DropdownMenuItem<AIModel>(
+                    value: model,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          model.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                        Text(
+                          model.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: themeProvider.getTextSecondary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                selectedItemBuilder: (context) {
+                  return displayModels.map((model) {
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            model.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            model.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: themeProvider.getTextSecondary(context),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    );
+                  }).toList();
+                },
+                onChanged: (model) {
+                  if (model != null) {
+                    chatProvider.setSelectedModel(model);
+                  }
+                },
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
-                );
-              }).toList(),
-              onChanged: (model) {
-                if (model != null) {
-                  chatProvider.setSelectedModel(model);
-                }
-              },
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
                 ),
               ),
             ),
