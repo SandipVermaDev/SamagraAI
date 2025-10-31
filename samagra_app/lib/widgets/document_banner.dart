@@ -101,8 +101,8 @@ class _DocumentBannerState extends State<DocumentBanner> {
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: themeProvider.isDarkMode
-                ? AppColors.darkDocumentBannerText.withOpacity(0.15)
-                : AppColors.lightDocumentBannerText.withOpacity(0.15),
+                ? AppColors.darkDocumentBannerText.withValues(alpha: 0.15)
+                : AppColors.lightDocumentBannerText.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(5),
           ),
           child: Icon(
@@ -208,7 +208,7 @@ class _DocumentBannerState extends State<DocumentBanner> {
               (themeProvider.isDarkMode
                       ? AppColors.darkDocumentBannerText
                       : AppColors.lightDocumentBannerText)
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
           height: 1,
         ),
         const SizedBox(height: 6),
@@ -273,7 +273,7 @@ class _DocumentBannerState extends State<DocumentBanner> {
               (themeProvider.isDarkMode
                       ? AppColors.darkDocumentBannerText
                       : AppColors.lightDocumentBannerText)
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
           height: 1,
         ),
         const SizedBox(height: 6),
@@ -323,7 +323,7 @@ class _DocumentBannerState extends State<DocumentBanner> {
             (themeProvider.isDarkMode
                     ? AppColors.darkDocumentBannerText
                     : AppColors.lightDocumentBannerText)
-                .withOpacity(0.1),
+                .withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -392,7 +392,7 @@ class _DocumentBannerState extends State<DocumentBanner> {
                           (themeProvider.isDarkMode
                                   ? AppColors.darkDocumentBannerText
                                   : AppColors.lightDocumentBannerText)
-                              .withOpacity(0.7),
+                              .withValues(alpha: 0.7),
                       fontSize: 10,
                     ),
                   ),
@@ -407,8 +407,8 @@ class _DocumentBannerState extends State<DocumentBanner> {
             icon: Icon(
               Icons.close,
               color: themeProvider.isDarkMode
-                  ? AppColors.darkDocumentBannerText.withOpacity(0.7)
-                  : AppColors.lightDocumentBannerText.withOpacity(0.7),
+                  ? AppColors.darkDocumentBannerText.withValues(alpha: 0.7)
+                  : AppColors.lightDocumentBannerText.withValues(alpha: 0.7),
               size: 16,
             ),
             padding: EdgeInsets.zero,

@@ -117,7 +117,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.mediumPurple.withOpacity(0.1) : null,
+          color: isSelected
+              ? AppColors.mediumPurple.withValues(alpha: 0.1)
+              : null,
           border: Border.all(
             color: isSelected ? AppColors.mediumPurple : Colors.grey.shade300,
             width: isSelected ? 2 : 1,

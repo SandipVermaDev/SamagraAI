@@ -27,13 +27,13 @@ class DocumentPreview extends StatelessWidget {
       padding: EdgeInsets.all(isCompact ? 6 : 8),
       decoration: BoxDecoration(
         color: themeProvider.isDarkMode
-            ? AppColors.darkDocumentBanner.withOpacity(0.5)
-            : AppColors.lightDocumentBanner.withOpacity(0.5),
+            ? AppColors.darkDocumentBanner.withValues(alpha: 0.5)
+            : AppColors.lightDocumentBanner.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: themeProvider.isDarkMode
-              ? AppColors.darkDocumentBannerText.withOpacity(0.3)
-              : AppColors.lightDocumentBannerText.withOpacity(0.3),
+              ? AppColors.darkDocumentBannerText.withValues(alpha: 0.3)
+              : AppColors.lightDocumentBannerText.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -71,8 +71,12 @@ class DocumentPreview extends StatelessWidget {
                     Icons.close,
                     size: isCompact ? 14 : 16,
                     color: themeProvider.isDarkMode
-                        ? AppColors.darkDocumentBannerText.withOpacity(0.7)
-                        : AppColors.lightDocumentBannerText.withOpacity(0.7),
+                        ? AppColors.darkDocumentBannerText.withValues(
+                            alpha: 0.7,
+                          )
+                        : AppColors.lightDocumentBannerText.withValues(
+                            alpha: 0.7,
+                          ),
                   ),
                 ),
             ],
@@ -91,7 +95,7 @@ class DocumentPreview extends StatelessWidget {
                     (themeProvider.isDarkMode
                             ? AppColors.darkDocumentBannerText
                             : AppColors.lightDocumentBannerText)
-                        .withOpacity(0.8),
+                        .withValues(alpha: 0.8),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -112,7 +116,7 @@ class DocumentPreview extends StatelessWidget {
                               (themeProvider.isDarkMode
                                       ? AppColors.darkDocumentBannerText
                                       : AppColors.lightDocumentBannerText)
-                                  .withOpacity(0.7),
+                                  .withValues(alpha: 0.7),
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -124,7 +128,7 @@ class DocumentPreview extends StatelessWidget {
                                   (themeProvider.isDarkMode
                                           ? AppColors.darkDocumentBannerText
                                           : AppColors.lightDocumentBannerText)
-                                      .withOpacity(0.8),
+                                      .withValues(alpha: 0.8),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -137,7 +141,7 @@ class DocumentPreview extends StatelessWidget {
                                 (themeProvider.isDarkMode
                                         ? AppColors.darkDocumentBannerText
                                         : AppColors.lightDocumentBannerText)
-                                    .withOpacity(0.6),
+                                    .withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -155,7 +159,7 @@ class DocumentPreview extends StatelessWidget {
                       (themeProvider.isDarkMode
                               ? AppColors.darkDocumentBannerText
                               : AppColors.lightDocumentBannerText)
-                          .withOpacity(0.6),
+                          .withValues(alpha: 0.6),
                 ),
               ),
           ],

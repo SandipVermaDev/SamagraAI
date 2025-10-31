@@ -29,7 +29,7 @@ class InputAreaWithPreview extends StatelessWidget {
                           (themeProvider.isDarkMode
                                   ? Colors.white
                                   : Colors.black)
-                              .withOpacity(0.1),
+                              .withValues(alpha: 0.1),
                       width: 1,
                     ),
                   ),
@@ -100,7 +100,7 @@ class _PendingImageChip extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
 
     final borderColor = (themeProvider.isDarkMode ? Colors.white : Colors.black)
-        .withOpacity(0.1);
+        .withValues(alpha: 0.1);
 
     Widget imageWidget;
     if (chatProvider.pendingImageBytes != null) {

@@ -106,7 +106,7 @@ class _InputBarState extends State<InputBar> {
             color: Theme.of(context).scaffoldBackgroundColor,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
@@ -190,7 +190,7 @@ class _InputBarState extends State<InputBar> {
                       ? AppColors.error
                       : themeProvider.getTextSecondary(context),
                   backgroundColor: _isRecording
-                      ? AppColors.error.withOpacity(0.1)
+                      ? AppColors.error.withValues(alpha: 0.1)
                       : null,
                 ),
                 tooltip: _isRecording
@@ -299,7 +299,7 @@ class _InputBarState extends State<InputBar> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: color, size: 28),
@@ -309,7 +309,9 @@ class _InputBarState extends State<InputBar> {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -389,6 +391,10 @@ class _InputBarState extends State<InputBar> {
       debugPrint('[InputBar] _pickDocument: error -> $e');
       debugPrint(st.toString());
       if (mounted) {
+        if (!mounted) {
+          _isStarting = false;
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking document: $e'),
@@ -514,6 +520,7 @@ class _InputBarState extends State<InputBar> {
       // Try web fallback
       _webSpeech ??= WebSpeechRecognizer();
       await _webSpeech!.initialize();
+      if (!mounted) return;
       if (!(_webSpeech!.isSupported)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -531,6 +538,7 @@ class _InputBarState extends State<InputBar> {
     if (!kIsWeb) {
       final status = await Permission.microphone.request();
       if (!status.isGranted) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Microphone permission is required.'),
@@ -539,6 +547,7 @@ class _InputBarState extends State<InputBar> {
         );
         return;
       }
+      if (!mounted) return;
     }
 
     // If plugin already listening, just reflect UI
@@ -565,6 +574,10 @@ class _InputBarState extends State<InputBar> {
           _isRecording = true;
           _usingWebSpeech = true;
         });
+        if (!mounted) {
+          _isStarting = false;
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Listening… (Web Speech API)'),
@@ -577,9 +590,11 @@ class _InputBarState extends State<InputBar> {
         onResult: _onSpeechResult,
         listenFor: const Duration(minutes: 2),
         pauseFor: const Duration(seconds: 3),
-        partialResults: true,
-        cancelOnError: true,
-        listenMode: stt.ListenMode.dictation,
+        listenOptions: stt.SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+          listenMode: stt.ListenMode.dictation,
+        ),
       );
       if (didStart == true && mounted) {
         setState(() {

@@ -63,8 +63,6 @@ class AppTheme {
         secondary: AppColors.softPink,
         surface: AppColors.lightSurface,
         onSurface: AppColors.mutedGray,
-        background: AppColors.lightBackground,
-        onBackground: AppColors.darkReadableText,
       ),
       scaffoldBackgroundColor: AppColors.lightBackground,
       inputDecorationTheme: InputDecorationTheme(
@@ -86,8 +84,6 @@ class AppTheme {
         secondary: AppColors.softPink,
         surface: AppColors.darkSurface,
         onSurface: AppColors.warmPurple,
-        background: AppColors.darkBackground,
-        onBackground: AppColors.lightPurple,
       ),
       scaffoldBackgroundColor: AppColors.darkBackground,
       inputDecorationTheme: InputDecorationTheme(

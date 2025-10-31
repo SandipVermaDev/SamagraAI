@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
+
 // Web implementation using the Web Speech API via dart:html
 import 'dart:async';
 import 'dart:html' as html;
@@ -29,7 +31,7 @@ class WebSpeechRecognizer {
       _recognition.continuous = true;
       _recognition.interimResults = true;
       final String lang = html.window.navigator.language;
-      _recognition.lang = (lang != null && lang.isNotEmpty) ? lang : 'en-US';
+      _recognition.lang = lang.isNotEmpty ? lang : 'en-US';
       _isSupported = true;
       return true;
     } catch (_) {

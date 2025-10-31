@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart';
@@ -144,13 +143,17 @@ class MessageBubble extends StatelessWidget {
                 message.imagePath!.isNotEmpty);
 
         final size = MediaQuery.of(dialogContext).size;
+        final dialogTheme = Theme.of(dialogContext).dialogTheme;
+        final backgroundColor =
+            dialogTheme.backgroundColor ??
+            Theme.of(dialogContext).colorScheme.surface;
         final dialogWidth = size.width * 0.9 > 600 ? 600.0 : size.width * 0.9;
         final dialogHeight = size.height * 0.8 > 700
             ? 700.0
             : size.height * 0.8;
 
         return Dialog(
-          backgroundColor: Theme.of(dialogContext).dialogBackgroundColor,
+          backgroundColor: backgroundColor,
           child: SizedBox(
             width: dialogWidth,
             height: dialogHeight,
@@ -404,13 +407,15 @@ class MessageBubble extends StatelessWidget {
           ),
           codeblockPadding: const EdgeInsets.all(12),
           blockquote: TextStyle(
-            color: themeProvider.getAiMessageText(context).withOpacity(0.8),
+            color: themeProvider
+                .getAiMessageText(context)
+                .withValues(alpha: 0.8),
             fontStyle: FontStyle.italic,
           ),
           blockquoteDecoration: BoxDecoration(
             color: themeProvider.isDarkMode
-                ? Colors.grey[800]!.withOpacity(0.3)
-                : Colors.grey[200]!.withOpacity(0.3),
+                ? Colors.grey[800]!.withValues(alpha: 0.3)
+                : Colors.grey[200]!.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(4),
             border: Border(
               left: BorderSide(color: AppColors.mediumPurple, width: 4),
@@ -504,14 +509,14 @@ class MessageBubble extends StatelessWidget {
             (themeProvider.isDarkMode
                     ? AppColors.darkDocumentBanner
                     : AppColors.lightDocumentBanner)
-                .withOpacity(0.3),
+                .withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color:
               (themeProvider.isDarkMode
                       ? AppColors.darkDocumentBannerText
                       : AppColors.lightDocumentBannerText)
-                  .withOpacity(0.5),
+                  .withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -557,7 +562,7 @@ class MessageBubble extends StatelessWidget {
                             (themeProvider.isDarkMode
                                     ? AppColors.darkDocumentBannerText
                                     : AppColors.lightDocumentBannerText)
-                                .withOpacity(0.7),
+                                .withValues(alpha: 0.7),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -569,7 +574,7 @@ class MessageBubble extends StatelessWidget {
                                 (themeProvider.isDarkMode
                                         ? AppColors.darkDocumentBannerText
                                         : AppColors.lightDocumentBannerText)
-                                    .withOpacity(0.8),
+                                    .withValues(alpha: 0.8),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -588,7 +593,7 @@ class MessageBubble extends StatelessWidget {
                     (themeProvider.isDarkMode
                             ? AppColors.darkDocumentBannerText
                             : AppColors.lightDocumentBannerText)
-                        .withOpacity(0.6),
+                        .withValues(alpha: 0.6),
               ),
             ),
         ],

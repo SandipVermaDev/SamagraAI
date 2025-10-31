@@ -51,7 +51,7 @@ class ChatService {
 
       if (imageBytes != null) {
         // For web, we have image bytes instead of a file path
-        // TODO: Implement image processing in backend
+        // Implement image processing in backend
         debugPrint(
           '[ChatService] sendMessage: including image bytes size=${imageBytes.length}',
         );

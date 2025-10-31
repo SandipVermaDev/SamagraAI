@@ -2,12 +2,27 @@ import asyncio
 import base64
 import json
 from typing import Optional, AsyncGenerator
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from core.config import settings
 from services.rag_service import document_store, process_uploaded_document, process_uploaded_image
-from services.model_manager import model_manager
+from services.model_manager import model_manager, SYSTEM_INSTRUCTION
+
+GENERAL_CHAT_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", SYSTEM_INSTRUCTION),
+    ("human", "{message}"),
+])
+
+
+def _invoke_general_chat(message: str):
+    chain = GENERAL_CHAT_PROMPT | get_llm()
+    return chain.invoke({"message": message})
+
+
+def _general_chat_astream(message: str):
+    chain = GENERAL_CHAT_PROMPT | get_llm()
+    return chain.astream({"message": message})
 
 try:
     import google.generativeai as genai  # type: ignore
@@ -192,7 +207,7 @@ def generate_ai_response(
         # If no document or image is uploaded, behave as a general chatbot
         print("No document or image loaded. Using general conversation mode.")
         try:
-            ai_response = get_llm().invoke(message)
+            ai_response = _invoke_general_chat(message)
             return ai_response.content
         except Exception as e:
             print(f"Error calling AI model: {e}")
@@ -203,22 +218,22 @@ def generate_ai_response(
         print(f"Question: {message}")
 
         # 2. Create a prompt template for RAG
-        template = """
-        You are a helpful assistant. Answer the question based on the following context, which may include:
-        - Text extracted from documents (PDFs, text files)
-        - Text extracted from images via OCR (optical character recognition)
-        
-        When asked about "this image" or "this document", the context below represents the content extracted from it.
-        If the context contains text that was extracted from an image, treat that as describing what was visible in the image.
-        
-        Context:
-        {context}
+        template = f"""
+        {SYSTEM_INSTRUCTION}
 
-        Question: {question}
-        
-        Provide a detailed answer based on the context. If the question is about an image and the context contains extracted text,
-        describe what text/content was found in the image. Only respond with "NO_ANSWER_IN_DOCUMENT" if the context is completely 
-        unrelated or empty.
+        Ground your reply in the provided context when it exists. The context may include:
+        - Text extracted from documents (PDFs, text files)
+        - Text extracted from images via optical character recognition (OCR)
+
+        When the user references "this image" or "this document", treat the context below as the extracted content of that asset.
+        If the context comes from an image, describe what the extracted text reveals about the visual.
+
+        Context:
+        {{context}}
+
+        Question: {{question}}
+
+        If the context does not contain the information needed, offer a concise clarification request instead of guessing. Only respond with "NO_ANSWER_IN_DOCUMENT" when the context is empty or unrelated.
         """
         prompt = PromptTemplate.from_template(template)
 
@@ -244,7 +259,7 @@ def generate_ai_response(
                 print("No relevant documents found, falling back to general chat")
                 # Fall back to general chat mode
                 try:
-                    ai_response = get_llm().invoke(message)
+                    ai_response = _invoke_general_chat(message)
                     return ai_response.content
                 except Exception as e:
                     print(f"Error in fallback general chat: {e}")
@@ -259,7 +274,7 @@ def generate_ai_response(
                 print("No answer found in document, falling back to general chat")
                 # Fall back to general chat mode
                 try:
-                    ai_response = get_llm().invoke(message)
+                    ai_response = _invoke_general_chat(message)
                     return ai_response.content
                 except Exception as e:
                     print(f"Error in fallback general chat: {e}")
@@ -278,7 +293,7 @@ def generate_ai_response(
             # Fall back to general chat mode in case of error
             print("RAG chain failed, falling back to general chat")
             try:
-                ai_response = get_llm().invoke(message)
+                ai_response = _invoke_general_chat(message)
                 return ai_response.content
             except Exception as fallback_error:
                 print(f"Fallback general chat also failed: {fallback_error}")
@@ -359,7 +374,7 @@ async def generate_ai_response_stream(
                 return
             # If no document or image is uploaded, behave as a general chatbot
             print("No document or image loaded. Using general conversation mode (streaming).")
-            async for chunk in get_llm().astream(message):
+            async for chunk in _general_chat_astream(message):
                 if chunk.content:
                     # Handle both text and multimodal content (for image generation)
                     content = chunk.content
@@ -455,7 +470,7 @@ async def generate_ai_response_stream(
             
             if not relevant_docs or all(len(doc.page_content.strip()) == 0 for doc in relevant_docs):
                 print("No relevant documents found, falling back to general chat (streaming)")
-                async for chunk in get_llm().astream(message):
+                async for chunk in _general_chat_astream(message):
                     if chunk.content:
                         data = f"data: {json.dumps({'content': chunk.content})}\n\n"
                         yield data
@@ -480,7 +495,7 @@ async def generate_ai_response_stream(
                 # Clear the NO_ANSWER response
                 yield f"data: {json.dumps({'content': '', 'clear': True})}\n\n"
                 # Stream general chat response
-                async for chunk in get_llm().astream(message):
+                async for chunk in _general_chat_astream(message):
                     if chunk.content:
                         data = f"data: {json.dumps({'content': chunk.content})}\n\n"
                         yield data
