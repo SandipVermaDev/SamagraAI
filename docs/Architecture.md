@@ -7,13 +7,13 @@ This document describes the overall system design for SamagraAI, including servi
 ```mermaid
 flowchart TD
 
-  A[Flutter App<br/>(samagra_app)]
-  B[FastAPI Backend<br/>(samagra_backend)]
-  C[Model Manager<br/>(Gemini)]
-  D[Google GenAI Embeddings]
-  E[Google Vision API]
-  F[EasyOCR]
-  G[FAISS Vector Store<br/>(in-memory)]
+  A["Flutter App<br/>(samagra_app)"]
+  B["FastAPI Backend<br/>(samagra_backend)"]
+  C["Model Manager<br/>(Gemini)"]
+  D["Google GenAI Embeddings"]
+  E["Google Vision API"]
+  F["EasyOCR"]
+  G["FAISS Vector Store<br/>(in-memory)"]
 
   A -->|HTTP/SSE| B
   B -->|Chat| C
