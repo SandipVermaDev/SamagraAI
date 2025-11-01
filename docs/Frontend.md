@@ -39,6 +39,7 @@
 ## Error Handling
 
 ---
-Prev: [Backend](Backend.md) · Next: [API](API.md)
 - Snackbars for mic permission issues and unsupported web speech.
 - Graceful fallback if SSE parsing errors occur.
+
+Prev: [Backend](Backend.md) · Next: [API](API.md)

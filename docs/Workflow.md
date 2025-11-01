@@ -6,6 +6,7 @@
 
 ```mermaid
 sequenceDiagram
+  autonumber
   participant U as User
   participant F as Flutter App
   participant B as FastAPI Backend
@@ -14,13 +15,14 @@ sequenceDiagram
 
   U->>F: Type message / attach docs/images
   F->>B: Upload new PDFs (multipart)
-  B->>R: Split + embed; merge into FAISS
+  B->>R: Split document into chunks
+  R-->>B: Add/merge into FAISS
   U->>F: Send message
   F->>B: POST /chat/stream (SSE)
   alt Has image (inline)
     B->>R: OCR (Vision/EasyOCR) and index text
   end
-  B->>R: If index present, retrieve context
+  B->>R: Retrieve context (if available)
   B->>M: Prompt (system + context + question)
   M-->>B: Stream tokens
   B-->>F: SSE chunks (text and/or image)
@@ -39,6 +41,7 @@ sequenceDiagram
 ## Error Paths
 
 ---
-Prev: [API](API.md) · Next: [Setup](Setup.md)
 - OCR or PDF parsing failure → proceed without extra context; user is informed in the stream.
 - SSE parse errors on client → gracefully stop and show partial answer.
+
+Prev: [API](API.md) · Next: [Setup](Setup.md)

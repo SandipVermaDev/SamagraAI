@@ -51,6 +51,7 @@ Base URL: `http://localhost:8000`
 ## Models
 
 ---
-Prev: [Frontend](Frontend.md) · Next: [Workflow](Workflow.md)
 - `POST /model/select` → `{ success, message, model_id }`
 - `GET /model/available` → `{ models: { id, name, description, mode }[], current_model: id }`
+
+Prev: [Frontend](Frontend.md) · Next: [Workflow](Workflow.md)

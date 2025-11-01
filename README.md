@@ -6,14 +6,14 @@ SamagraAI is a Flutter-based chat application backed by a FastAPI service that b
 - Backend: FastAPI with LangChain, FAISS vector store, Google Generative AI (Gemini) for chat + embeddings, OCR via Google Vision with EasyOCR fallback.
 
 Docs hub:
-- docs/README.md – start here
-- docs/Architecture.md – system architecture and diagrams
-- docs/Backend.md – services and pipelines (chat, RAG, OCR)
-- docs/Frontend.md – widgets, providers, app flow
-- docs/API.md – endpoints and payloads
-- docs/Workflow.md – end‑to‑end message/data flow
-- docs/Setup.md – environment and run instructions
-- docs/Presentation.md – professor‑ready narrative
+- [Start here](docs/README.md)
+- [Architecture](docs/Architecture.md) — system architecture and diagrams
+- [Backend](docs/Backend.md) — services and pipelines (chat, RAG, OCR)
+- [Frontend](docs/Frontend.md) — widgets, providers, app flow
+- [API](docs/API.md) — endpoints and payloads
+- [Workflow](docs/Workflow.md) — end‑to‑end message/data flow
+- [Setup](docs/Setup.md) — environment and run instructions
+- [Presentation](docs/Presentation.md) — professor‑ready narrative
 
 ## Quick Start
 

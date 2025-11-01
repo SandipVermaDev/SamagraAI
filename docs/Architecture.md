@@ -5,25 +5,34 @@ This document describes the overall system design for SamagraAI, including servi
 ## High‑level Diagram
 
 ```mermaid
-graph TD
-  A[Flutter App (samagra_app)] -- HTTP/SSE --> B[FastAPI Backend (samagra_backend)]
-  B -- Chat -> C[Model Manager (Gemini)]
-  B -- Embeddings -> D[Google GenAI Embeddings]
-  B -- OCR -> E[Google Vision API]
-  B -- Fallback OCR -> F[EasyOCR]
-  B <--> G[FAISS Vector Store (in-memory)]
+flowchart TD
+
+  A[Flutter App<br/>(samagra_app)]
+  B[FastAPI Backend<br/>(samagra_backend)]
+  C[Model Manager<br/>(Gemini)]
+  D[Google GenAI Embeddings]
+  E[Google Vision API]
+  F[EasyOCR]
+  G[FAISS Vector Store<br/>(in-memory)]
+
+  A -->|HTTP/SSE| B
+  B -->|Chat| C
+  B -->|Embeddings| D
+  B -->|OCR| E
+  B -->|Fallback OCR| F
+  B <--> G
 
   subgraph Frontend
-  A
+    A
   end
 
   subgraph Backend
-  B
-  C
-  D
-  E
-  F
-  G
+    B
+    C
+    D
+    E
+    F
+    G
   end
 ```
 
